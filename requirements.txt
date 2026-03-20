@@ -1,0 +1,20 @@
+# pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+
+# yoloworld
+# pip install git+https://github.com/ultralytics/CLIP.git
+
+# pytorch가 가장 선행되어야 한다.
+pyyaml
+opencv-python
+natsort
+ultralytics
+
+#sort
+numpy
+scipy
+
+# bytetrack
+lap
+cython
+cython-bbox
+

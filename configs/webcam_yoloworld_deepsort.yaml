@@ -1,0 +1,52 @@
+setting:
+  shared_memory_name: "exp_dummy"
+
+source:
+  type: "WebcamSource"
+  device_index: 0
+  width: 1280
+  height: 720
+  fps: 30
+  buffer_size: 60
+
+pipelines:
+  - name: "DummyPipeline"
+    enable: true
+    gpu_id: 0
+    
+    detector:
+      type: "YOLOWorldDetector"
+      weights_path: assets/weights/yolov8s-worldv2.pt
+      imgsz: 640
+      iou: 0.7
+      conf: 0.5
+      classes: ["person", "book", "mouse", "clock"]
+      
+    tracker:
+      type: "DeepSORTTracker"
+      model_path : assets/weights/ckpt.t7
+      min_confidence : 0.3
+      nms_max_overlap : 1.0
+      max_dist : 0.4 
+      nn_budget : 100
+      metric : cosine
+      use_cuda : true
+      fps: 30
+
+output:
+  mode: "sync"
+  target_fps: 30
+  
+  handlers:
+    - type: "ScreenHandler"
+      enable: true
+      window_name: "MOT Monitor"
+      view_width: 480
+      view_height: 270
+      draw_detections: true
+      draw_tracks: true
+      show_info: true
+    - type: "FileLogHandler"
+      enable: true
+      output_dir: "./logs"
+      filename: "tracking_data.csv"
