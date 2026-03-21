@@ -86,8 +86,7 @@ class abandonedObject:
         person = {}
         obj = {}
         for track in tracks:
-            cls = track.get('class_id')
-            track_id = track['track_id']
+            track_id, cls = track[4], track[5]
             if cls == 'person':
                 person[track_id] = track
             else:
@@ -102,17 +101,20 @@ class abandonedObject:
         for owner_id, obj_ids in self.objs_owner.items():
             for obj_id in obj_ids:
                 # obj_id나 owner_id가 현재 프레임에서 가려져 tracks에 존재 하지 않는 경우처리 
+                # obj_state에 들어있지 않은 object의 경우 상태 갱신할 필요 없음 
                 # 추후 다른 방식으로 변경 가능 
                 if owner_id not in person:
                     continue
                 if obj_id not in obj:
+                    continue
+                if obj_id not in self.obj_state:
                     continue
 
                 owner = person[owner_id] # track_id가 owner_id인 person의 track
                 belongings = obj[obj_id] # track_id가 obj_id인 object의 track
 
                 # onwer bbox와 belongings bbox의 distance 계산
-                distance = calc_distance(belongings['bbox'], owner['bbox'])
+                distance = calc_distance(belongings[:4], owner[:4])
                 # ------------------------------------
                 # 4. state update 및 bbox update
                 curr_state = self.obj_state[obj_id]['state']
@@ -135,7 +137,7 @@ class abandonedObject:
                 #--------------------------------------
                 state = self.obj_state[obj_id]['state']
                 if state != objectState.WITH_OWNER:
-                    self.obj_state[obj_id]['bbox'] = belongings['bbox']
+                    self.obj_state[obj_id]['bbox'] = belongings[:4]
                 else: 
                     self.obj_state[obj_id]['bbox'] = None
                 # object의 last seen frame 갱신 
@@ -176,7 +178,8 @@ class abandonedObject:
         # 프레임마다 person과 object로 분리 
         for track in track_results:
             '''거리가 가까운 애들끼리 pair'''
-            if track['class_id'] == 'person':
+            cls = track[5]
+            if cls == 'person':
                 persons.append(track)
             else:
                 objects.append(track)
@@ -206,8 +209,8 @@ class abandonedObject:
         '''
         # object와 distance_threshold안쪽인 person을 후보로 묶어 pair_hist에 저장
         for obj in objects:
-            obj_id = obj['track_id']
-            obj_bbox = obj['bbox'] 
+            obj_id = obj[4]
+            obj_bbox = obj[0:4] 
             # prev_bbox가 없으면 None으로 하여 초기화 
             self.prev_bbox.setdefault(obj_id, None)
             # 이미 owner가 정해진 object는 더이상 후보를 찾지 않는다 
@@ -220,12 +223,12 @@ class abandonedObject:
             max_score = float('-inf') # owner_score가 음수일수도 있으므로 음의 무한대로 초기값을 지정해둔다 
             maxScore_person = None
             for person in persons:
-                person_id = person['track_id']
+                person_id = person[4]
                 # prev_bbox가 없는 경우 None으로하여 생성
                 self.prev_bbox.setdefault(person_id, None)
 
                 # bbox distance < dist_threshold 이면서 pair_hist[object_id]에 person_id가 없는 경우 추가
-                person_bbox = person['bbox'] # bbox를 화면 기준으로 픽셀화
+                person_bbox = person[0:4] # bbox를 화면 기준으로 픽셀화
                 distance = calc_distance(obj_bbox, person_bbox)
 
                 if distance > self.dist_threshold: # 박스사이의 거리가 threshold보다 크면 생각할 필요 없음
@@ -272,7 +275,21 @@ class abandonedObject:
                     
         # prev_bbox에 업데이트
         for track in track_results:
-            self.prev_bbox[track['track_id']] = track['bbox']
+            self.prev_bbox[track[4]] = track[:4]
+
+    def restore_id(self, obj):
+        '''
+            SEPARATED, SUSPECTED, LOST상태에서의 object는 대부분 이동하지 않은 고정된 상태일 것이다 이를 이용하여 prev bbox(object_state['bbox'])와 curr_bbox를 비교하여 id를 복구한다 
+            복구된 id를 담은 new track results를 return
+            tracker의 output results 형태와 동일한 형태로 new track results를 만들어야한다 
+            형태: [[float(x1 / img_w),
+                  float(y1 / img_h),
+                  float(x2 / img_w),
+                  float(y2 / img_h),
+                  int(strack.track_id),
+                  int(strack.class_id)], ...] =>  tlbr 형태의 bbox
+        '''
+        pass
 
     def _set_state(self, frame_id, obj_id, new_state):
         '''
@@ -341,6 +358,7 @@ class abandonedObject:
 def calc_center(bbox):
     '''
         center x, y를 구하는 함수 
+        tlbr 형태의 bbox의 center좌표를 구한다 
     '''
     x1, y1, x2, y2 = bbox
     cx = (x1 + x2) / 2
