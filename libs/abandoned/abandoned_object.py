@@ -16,8 +16,8 @@ class abandonedObject:
         self.fps = config.get('fps', 30)
 
         self.dist_threshold = config.get('dist_threshold', 0.05) # distance 정규화된 좌표를 기준으로 설정해야한다 
-        self.suspect_threshold_min = config.get('suspect_threshold', 15) # minute
-        self.lost_threshold_min = config.get('lost_threshold', 30) # minute
+        self.suspect_threshold_min = config.get('suspect_threshold', 15) # minute : separated로붙 15분 
+        self.lost_threshold_min = config.get('lost_threshold', 15) # minute : suspected로 부터 15분
 
         # 프레임으로 계산하여 처리하는 것이 time함수를 사용하는것보다 안정적
         self.suspect_threshold = self.suspect_threshold_min * 60 * self.fps
@@ -111,46 +111,43 @@ class abandonedObject:
                 owner = person[owner_id] # track_id가 owner_id인 person의 track
                 belongings = obj[obj_id] # track_id가 obj_id인 object의 track
 
+                # onwer bbox와 belongings bbox의 distance 계산
                 distance = calc_distance(belongings['bbox'], owner['bbox'])
                 # ------------------------------------
-                # 4
-                # obj_state[obj_id]['state'] = 0(WITH_OWNER)인 경우
-                # onwer bbox와 belongings bbox의 distance 계산
-                # distnace가 dist threshold보다 크면 obj_state[obj_id]를 SEPARATED로 변경
-                if distance > self.dist_threshold:
-                    new_state = objectState.SEPARATED
-                    self._set_state(frame_id, obj_id, belongings['bbox'], new_state)
-                # -------------------------------------
-
-                    # 5. 프레임수를 계산하여 SUSPECTED, LOST 갱신 
-                    if self.obj_state[obj_id]['separated_start'] is not None and self.obj_state[obj_id]['suspected_start'] is None: # susepcted_start가 존재하면 이과정은 실행하지 않음
-                        # separated start frame과 현재 frame을 비교하여 suspect threshold이상이면 suspect로 상태 업데이트
-                        turn_suspected = self._turn_suspected(obj_id, frame_id)
-                        if turn_suspected:
-                            new_state = objectState.SUSPECTED
-                            self._set_state(frame_id, obj_id, belongings['bbox'], new_state)
-
-                    if self.obj_state[obj_id]['suspected_start'] is not None:
-                        # suspected start frame과 현재 frame을 비교하여 lost threhold 이상이면 lost로 상태 업데이트
-                        turn_lost = self._turn_lost(obj_id, frame_id)
-                        if turn_lost:
-                            new_state = objectState.LOST
-                            self._set_state(frame_id, obj_id, belongings['bbox'], new_state)
-                    #--------------------------------------
-                    
-                else: # distance <= dist threshold가 되어 owner와 belongings가 만나는 경우
-                    ''' 
-                        가까우면 withowner state 복귀 : 근접한 순간 갱신 
-                        - 어차피 주인이 근처에있으므로 즉시 with owner로 변경
-                        - 근처에 owner가 있으면 separated withowner 왔다갔다해도 상관없어보임
-                        - 떨어지면 다시 separated로 
-                        - separated에서 suspected 까지 15분 lost까지 30분이므로 이미 주인은 그 자리에 없을것임 
-                    '''
+                # 4. state update 및 bbox update
+                curr_state = self.obj_state[obj_id]['state']
+                if distance <= self.dist_threshold:
                     new_state = objectState.WITH_OWNER
-                    self._set_state(frame_id, obj_id, belongings['bbox'], new_state)
+                else:
+                    if curr_state == objectState.WITH_OWNER:
+                        new_state = objectState.SEPARATED
 
+                    elif curr_state == objectState.SEPARATED and self._turn_suspected(obj_id, frame_id):
+                        new_state = objectState.SUSPECTED
+
+                    elif curr_state == objectState.SUSPECTED and self._turn_lost(obj_id, frame_id):
+                        new_state = objectState.LOST
+
+                    else: new_state = curr_state
+
+                self._set_state(frame_id, obj_id, new_state)
+
+                #--------------------------------------
+                state = self.obj_state[obj_id]['state']
+                if state != objectState.WITH_OWNER:
+                    self.obj_state[obj_id]['bbox'] = belongings['bbox']
+                else: 
+                    self.obj_state[obj_id]['bbox'] = None
                 # object의 last seen frame 갱신 
-                self.obj_state['last_seen'] = frame_id
+                self.obj_state[obj_id]['last_seen'] = frame_id
+
+            '''
+                딕셔너리에 무한히 저장할 수 없으므로 정리해줘야한다 
+                1. last seen frame 과 현재 frame을 비교하여 일정 프레임이 지나면 삭제 
+                    - obj_owner : obj_id를 삭제
+                    - objs_owners : owner_id 안의 [obj1, 2, 3..] obj들이 모두 사라지면 owner_id를 삭제
+                    - obj_state : obj_id 삭제 
+            '''
 
             '''
                 해야할것: separated, suspected, lost상태에서는 bbox가 거의 움직이지 않고 고정된 상태일 것이다 
@@ -158,10 +155,8 @@ class abandonedObject:
                         -> tracks에서도 id를 복구시키고 return해줘야 화면 표시시에도 id가 유지됨   
                             executor에서 update 이후 retore_id를 통해 new track을 return해서 받아오는 방향으로 
                             update함수는 상태 갱신하는 함수, 여기서 return new track을 하면 취지에 안맞음
-                        => restore_id 함수를 작성한다 
+                        => restore_id 함수를 작성
             '''
-
-        pass
         
     
     def owner_check(self, frame_id, track_results):
@@ -241,6 +236,10 @@ class abandonedObject:
                     self.pair_hist[obj_id][person_id] = 0
 
                 # prev_bbox = None이면 owner score 계산이 불가능하므로 건너뛰어 진행하지 않음
+                '''
+                    이 경우 score를 1- distance/dist_threshold로 만 게산할지 생각해봐야함 
+                    이유: 첫 등장 프레임에서 score계산이 안됨(이는 원래 의도한대로이긴 함)
+                '''
                 if self.prev_bbox[obj_id] is None or self.prev_bbox[person_id] is None:
                     continue
 
@@ -275,14 +274,17 @@ class abandonedObject:
         for track in track_results:
             self.prev_bbox[track['track_id']] = track['bbox']
 
-    def _set_state(self, frame_id, obj_id, obj_bbox, new_state):
+    def _set_state(self, frame_id, obj_id, new_state):
         '''
-            state 및 기타 갱신
+            state update
         '''
         if new_state == objectState.WITH_OWNER:
-            self.obj_state['separated_start'] = None
-            self.obj_state['suspected_start'] = None
-            self.obj_state['lost_start'] = None
+            self.obj_state[obj_id]['separated_start'] = None
+            self.obj_state[obj_id]['suspected_start'] = None
+            self.obj_state[obj_id]['lost_start'] = None
+            self.obj_state[obj_id]['state'] = new_state
+            #self.obj_state[obj_id]['bbox'] = None
+            return 
 
         elif new_state == objectState.SEPARATED:
             if self.obj_state[obj_id]['state'] != objectState.SEPARATED: # start frame id는 처음 한번만 업데이트해야한다 매번 업데이트하면 안됨 
@@ -295,9 +297,9 @@ class abandonedObject:
         elif new_state == objectState.LOST:
             if self.obj_state[obj_id]['state'] != objectState.LOST:
                 self.obj_state[obj_id]['lost_start'] = frame_id
-        # state, bbox 갱신
+        # state 갱신
         self.obj_state[obj_id]['state'] = new_state
-        self.obj_state[obj_id]['bbox'] = obj_bbox
+        #self.obj_state[obj_id]['bbox'] = obj_bbox
 
 
     def _calc_ownerScore(self, obj_bbox, person_bbox, prev_obj, prev_person, dist_threshold):
@@ -341,8 +343,8 @@ def calc_center(bbox):
         center x, y를 구하는 함수 
     '''
     x1, y1, x2, y2 = bbox
-    cx = max(0, (x1 + x2) / 2)
-    cy = max(0, (y1 + y2) / 2)
+    cx = (x1 + x2) / 2
+    cy = (y1 + y2) / 2
 
     return (cx, cy)
 
