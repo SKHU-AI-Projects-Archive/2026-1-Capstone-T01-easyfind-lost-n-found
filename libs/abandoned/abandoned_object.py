@@ -25,6 +25,7 @@ class abandonedObject:
 
         self.score_threshold = config.get('score_threshold', 0.7)
         self.owner_frame_threshold = config.get('owner_frame_threshold', 30)
+        self.restore_threshold = config.get('restore_threshold', 0.7)
 
         # 주종관계가 정해지기 전 사용하는 딕셔너리
         # 주종관계가 정해지면 삭제, 화면에서 object가 사라지면 삭제
@@ -83,6 +84,7 @@ class abandonedObject:
             
         '''
         # 1. tracks에서 person, object 분리
+        # 저장형태 : {id1 : track, id2 : track, ...}
         person = {}
         obj = {}
         for track in tracks:
@@ -92,16 +94,24 @@ class abandonedObject:
             else:
                 obj[track_id] = track
 
+        # 1-2. restore id 
+        # _restore_id를 초반에 실행함으로 보정된 id의 객체의 상태 갱신을 수행할 수 있게한다 
+        obj = self._restore_objId(obj)
+
+        # 1-3. restore가 반영된 new track results를 생성
+        new_track_results = list(person.values()) + list(obj.values())
+
         # 2. owner_check를 통한 owner 확정및 갱신 
-        self.owner_check(frame_id, tracks)
+        self.owner_check(frame_id, new_track_results)
 
         # 3. obj_owner에 매칭된 person과 object이 멀어짐을 감지하여 object의 상태를 업데이트
         # 일정 거리이상 멀어지면 objs_state['state'] = objectState.SEPARATED로 설정 
         # obj_id의 bbox를 obj_state[obj_id]['bbox']에 갱신
+        ''' TODO: owner 없는 objcet가 분리되어 고정된 상태인 경우 분실물로 처리하기 위한 상태관리 푤요 -> 이경우 아래 for for를 for obj_id, belongings in obj.items()로 수정해 돌아야한다 '''
         for owner_id, obj_ids in self.objs_owner.items():
             for obj_id in obj_ids:
-                # obj_id나 owner_id가 현재 프레임에서 가려져 tracks에 존재 하지 않는 경우처리 
-                # obj_state에 들어있지 않은 object의 경우 상태 갱신할 필요 없음 
+                # obj_id나 owner_id가 현재 프레임에서 가려져 tracks에 존재하지않는 경우 갱신을 하지 않음
+                # obj_state에 들어있지 않은 object의 경우 상태 갱신할 필요 없음 -> id switch가 일어난 경우는 restore_id에서 갱신
                 # 추후 다른 방식으로 변경 가능 
                 if owner_id not in person:
                     continue
@@ -143,23 +153,23 @@ class abandonedObject:
                 # object의 last seen frame 갱신 
                 self.obj_state[obj_id]['last_seen'] = frame_id
 
-            '''
-                딕셔너리에 무한히 저장할 수 없으므로 정리해줘야한다 
-                1. last seen frame 과 현재 frame을 비교하여 일정 프레임이 지나면 삭제 
-                    - obj_owner : obj_id를 삭제
-                    - objs_owners : owner_id 안의 [obj1, 2, 3..] obj들이 모두 사라지면 owner_id를 삭제
-                    - obj_state : obj_id 삭제 
-            '''
+        '''
+            딕셔너리에 무한히 저장할 수 없으므로 정리해줘야한다 
+            1. last seen frame 과 현재 frame을 비교하여 일정 프레임이 지나면 삭제 
+                - obj_owner : obj_id를 삭제
+                - objs_owners : owner_id 안의 [obj1, 2, 3..] obj들이 모두 사라지면 owner_id를 삭제
+                - obj_state : obj_id 삭제 
+        '''
 
-            '''
-                해야할것: separated, suspected, lost상태에서는 bbox가 거의 움직이지 않고 고정된 상태일 것이다 
-                        obj_state[obj_id]에 있는 separated, suspected, lost 상태의 object가 id switch가 일어났을 경우 저장된 bbox의 iou를 비교하여 id를 복구해준다 
-                        -> tracks에서도 id를 복구시키고 return해줘야 화면 표시시에도 id가 유지됨   
-                            executor에서 update 이후 retore_id를 통해 new track을 return해서 받아오는 방향으로 
-                            update함수는 상태 갱신하는 함수, 여기서 return new track을 하면 취지에 안맞음
-                        => restore_id 함수를 작성
-            '''
-        
+        '''
+            해야할것: separated, suspected, lost상태에서는 bbox가 거의 움직이지 않고 고정된 상태일 것이다 
+                    obj_state[obj_id]에 있는 separated, suspected, lost 상태의 object가 id switch가 일어났을 경우 저장된 bbox의 iou를 비교하여 id를 복구해준다 
+                    -> tracks에서도 id를 복구시키고 return해줘야 화면 표시시에도 id가 유지됨   
+                        executor에서 update 이후 retore_id를 통해 new track을 return해서 받아오는 방향으로 
+                        update함수는 상태 갱신하는 함수, 여기서 return new track을 하면 취지에 안맞음
+                    => restore_id 함수를 작성
+        '''
+        return new_track_results
     
     def owner_check(self, frame_id, track_results):
         '''
@@ -183,7 +193,6 @@ class abandonedObject:
                 persons.append(track)
             else:
                 objects.append(track)
-
         ''' 
             owner 후보 탐색
 
@@ -277,19 +286,70 @@ class abandonedObject:
         for track in track_results:
             self.prev_bbox[track[4]] = track[:4]
 
-    def restore_id(self, obj):
+    def _restore_objId(self, obj):
         '''
-            SEPARATED, SUSPECTED, LOST상태에서의 object는 대부분 이동하지 않은 고정된 상태일 것이다 이를 이용하여 prev bbox(object_state['bbox'])와 curr_bbox를 비교하여 id를 복구한다 
-            복구된 id를 담은 new track results를 return
+            obj => 현재 frame에서 추적된 대상
+            obj : {id1 : track, id2 : track, ...}
+
+            SEPARATED, SUSPECTED, LOST상태에서의 object는 대부분 이동하지 않은 고정된 상태일 것이다 이를 이용하여 prev bbox(object_state['bbox'])와 curr_bbox의 iou를 비교하여 id를 복구한다 
+            복구된 id와 기존 track을 담은 new track results를 return
             tracker의 output results 형태와 동일한 형태로 new track results를 만들어야한다 
-            형태: [[float(x1 / img_w),
-                  float(y1 / img_h),
-                  float(x2 / img_w),
-                  float(y2 / img_h),
-                  int(strack.track_id),
-                  int(strack.class_id)], ...] =>  tlbr 형태의 bbox
+            저장형태: [[float(x1 / img_w),
+                     float(y1 / img_h),
+                     float(x2 / img_w),
+                     float(y2 / img_h),
+                     int(strack.track_id),
+                     int(strack.class_id)], ...] =>  tlbr 형태의 bbox
         '''
-        pass
+        # 현재 id와 복구된 id를 매핑 || {curr_id : restore_id}
+        restore_id_map = {}
+        # 이미 복구된 obj의 id는 재매칭 하지 않음 
+        matching_curr_ids = set()
+
+        ''' 1. 복구할 대상인 id를 탐색, id 복구 '''
+        for obj_id, obj_info in self.obj_state.items():
+            state = obj_info['state']
+
+            if state == objectState.WITH_OWNER: # id 복구 대상은 SEPARATED, SUSPECTED, LOST (이 세가지 상태일 경우만 bbox갱신하므로)
+                continue
+            if obj_id in obj: # 현재 프레임에서의 obj
+                continue
+            # WITH_OWNER가 아니면 bbox를 업데이트하니 상관없지만 혹시모르는 상황을 대비하여 작성
+            prev_bbox = obj_info['bbox']
+            if prev_bbox is None:
+                continue
+
+            max_iou = 0
+            max_curr_id = None
+
+            for curr_id, track in obj.items():
+                if curr_id in matching_curr_ids:
+                    continue
+
+                curr_bbox = track[:4]
+                iou = calc_iou(curr_bbox, prev_bbox)
+                if iou > max_iou:
+                    max_iou = iou
+                    max_curr_id = curr_id
+            # for문이 끝나는 시점에 max_curr_id가 정해져있음 이를 threshold와 비교하여 이상이면 id 복구대상으로 판단 
+            if max_iou >= self.restore_threshold and max_curr_id is not None:
+                restore_id_map[max_curr_id] = obj_id
+                matching_curr_ids.add(max_curr_id)
+
+        ''' 2. new_obj 생성 : restore된 id를 반영 '''
+        new_obj = {}
+        for curr_id, track in obj.items():
+            new_track = list(track)
+            restored_id = restore_id_map.get(curr_id, curr_id) # restore_id_map에 curr_id와 매핑된 복구할 id가 없다면 현재 curr_id를 restored_id로한다
+
+            # key값이 중복되지않게 해뒀지만 혹시모를 상황을 대비해 같은 key가 2개일때 덮어씌기 방지
+            if restored_id in new_obj:
+                restored_id = curr_id
+
+            new_track[4] = restored_id
+            new_obj[restored_id] = new_track
+
+        return new_obj
 
     def _set_state(self, frame_id, obj_id, new_state):
         '''
@@ -408,6 +468,33 @@ def calc_cosineSim(obj_mv, person_mv):
         return 0
     
     return np.dot(obj_mv, person_mv) / (norm_obj * norm_person)
+
+def calc_iou(bbox1, bbox2):
+    '''
+        curr_bbox : 현재 프레임 object의 bbox
+        obj_bbox : state가 SEPARATED, SUSPECTED, LOST인  object의 bbox
+
+        iou를 계산하여 return
+    '''
+    # 교집합 좌표
+    x1 = max(bbox1[0], bbox2[0])
+    y1 = max(bbox1[1], bbox2[1])
+    x2 = max(bbox1[2], bbox2[2])
+    y2 = max(bbox1[3], bbox2[3])
+
+    # 교집합 area
+    w = (x2 - x1) / 2
+    h = (y2 - y1) / 2
+    inter_area = w * h
+
+    # 합집합 : curr_bbox_area + obj_bbox_area - inter_area
+    bbox1_area = (bbox1[2] - bbox1[0]) * (bbox1[3] - bbox1[1])
+    bbox2_area = (bbox2[2] - bbox2[0]) * (bbox2[3] - bbox2[1])
+    union_area = bbox1_area + bbox2_area - inter_area
+
+    # iou
+    iou = inter_area / union_area
+    return iou
     
 '''view_w = 1280
 view_h = 720
