@@ -18,10 +18,12 @@ class abandonedObject:
         self.dist_threshold = config.get('dist_threshold', 0.05) # distance 정규화된 좌표를 기준으로 설정해야한다 
         self.suspect_threshold_min = config.get('suspect_threshold', 15) # minute : separated로붙 15분 
         self.lost_threshold_min = config.get('lost_threshold', 15) # minute : suspected로 부터 15분
+        self.clean_threshold_sec = config.get('clean_threshold_sec', 3) # second : last_seen - current frame 가 일정 second를 지나면 딕셔너리에서 삭제 
 
         # 프레임으로 계산하여 처리하는 것이 time함수를 사용하는것보다 안정적
         self.suspect_threshold = self.suspect_threshold_min * 60 * self.fps
         self.lost_threshold = self.lost_threshold_min * 60 * self.fps
+        self.clean_threshold = self.clean_threshold_sec * self.fps
 
         self.score_threshold = config.get('score_threshold', 0.7)
         self.owner_frame_threshold = config.get('owner_frame_threshold', 30)
@@ -63,8 +65,11 @@ class abandonedObject:
                             'restart_with_owner' : ? 누군가 다시 가져갈 수 있으므로 시작점 기록}
                 - state = 2인경우 class(object의 종류)와 color(추후 색구분/추출하는 방법을 찾는경우 추가) 정보도 추가 
 
-            objs_owner 저장형태 : owner_id{'object_ids' :[id1, id2,...],
-                                            'ReID_list' : [상태벡터1, 상태벡터2, ...]}
+            objs_owner 저장형태 : owner_id{'object_ids' : [id1 ,id2, ...]}
+            
+            이후 owner의 ReID를 저장하고싶은 경우 
+            { owner_id{'object_ids' :[id1, id2,...],
+                     'ReID_list' : [상태벡터1, 상태벡터2, ...]} }형태로 확장
     
                                    obj id는 set 형태로 저장 => 중복 방지
 
@@ -83,7 +88,7 @@ class abandonedObject:
             + SEPARATED 시작 프레임, SUSPECTED 시작 프레임, LOST 시작 프레임을 저장하는 것이 중요해보임 
             
         '''
-        # 1. tracks에서 person, object 분리
+        #1. tracks에서 person, object 분리 
         # 저장형태 : {id1 : track, id2 : track, ...}
         person = {}
         obj = {}
@@ -94,17 +99,17 @@ class abandonedObject:
             else:
                 obj[track_id] = track
 
-        # 1-2. restore id 
+        # 2. restore id 
         # _restore_id를 초반에 실행함으로 보정된 id의 객체의 상태 갱신을 수행할 수 있게한다 
         obj = self._restore_objId(obj)
 
-        # 1-3. restore가 반영된 new track results를 생성
+        # 3. restore가 반영된 new track results를 생성
         new_track_results = list(person.values()) + list(obj.values())
 
-        # 2. owner_check를 통한 owner 확정및 갱신 
-        self.owner_check(frame_id, new_track_results)
+        # 4. owner_check를 통한 owner 확정및 갱신 
+        self._owner_check(frame_id, new_track_results)
 
-        # 3. obj_owner에 매칭된 person과 object이 멀어짐을 감지하여 object의 상태를 업데이트
+        # 5. obj_owner에 매칭된 person과 object이 멀어짐을 감지하여 object의 상태를 업데이트
         # 일정 거리이상 멀어지면 objs_state['state'] = objectState.SEPARATED로 설정 
         # obj_id의 bbox를 obj_state[obj_id]['bbox']에 갱신
         ''' TODO: owner 없는 objcet가 분리되어 고정된 상태인 경우 분실물로 처리하기 위한 상태관리 푤요 -> 이경우 아래 for for를 for obj_id, belongings in obj.items()로 수정해 돌아야한다 '''
@@ -126,7 +131,7 @@ class abandonedObject:
                 # onwer bbox와 belongings bbox의 distance 계산
                 distance = calc_distance(belongings[:4], owner[:4])
                 # ------------------------------------
-                # 4. state update 및 bbox update
+                # 6. state update 및 bbox update
                 curr_state = self.obj_state[obj_id]['state']
                 if distance <= self.dist_threshold:
                     new_state = objectState.WITH_OWNER
@@ -150,28 +155,16 @@ class abandonedObject:
                     self.obj_state[obj_id]['bbox'] = belongings[:4]
                 else: 
                     self.obj_state[obj_id]['bbox'] = None
+
                 # object의 last seen frame 갱신 
                 self.obj_state[obj_id]['last_seen'] = frame_id
+        
+        # 7. 저장공간 정리 
+        self._clean(frame_id)
 
-        '''
-            딕셔너리에 무한히 저장할 수 없으므로 정리해줘야한다 
-            1. last seen frame 과 현재 frame을 비교하여 일정 프레임이 지나면 삭제 
-                - obj_owner : obj_id를 삭제
-                - objs_owners : owner_id 안의 [obj1, 2, 3..] obj들이 모두 사라지면 owner_id를 삭제
-                - obj_state : obj_id 삭제 
-        '''
-
-        '''
-            해야할것: separated, suspected, lost상태에서는 bbox가 거의 움직이지 않고 고정된 상태일 것이다 
-                    obj_state[obj_id]에 있는 separated, suspected, lost 상태의 object가 id switch가 일어났을 경우 저장된 bbox의 iou를 비교하여 id를 복구해준다 
-                    -> tracks에서도 id를 복구시키고 return해줘야 화면 표시시에도 id가 유지됨   
-                        executor에서 update 이후 retore_id를 통해 new track을 return해서 받아오는 방향으로 
-                        update함수는 상태 갱신하는 함수, 여기서 return new track을 하면 취지에 안맞음
-                    => restore_id 함수를 작성
-        '''
         return new_track_results
     
-    def owner_check(self, frame_id, track_results):
+    def _owner_check(self, frame_id, track_results):
         '''
             owner person과 소유한 object를 묶어 object_owner에 저장
             update에서 while문을 통해 track results를 돌면서 주인관계를 묶는다
@@ -351,6 +344,55 @@ class abandonedObject:
 
         return new_obj
 
+    def _clean(self, frame_id):
+        '''딕셔너리에 무한히 저장할 수 없으므로 정리해줘야한다 
+            1. last seen frame 과 현재 frame을 비교하여 일정 프레임이 지나면 삭제 
+                - obj_owner : obj_id를 삭제
+                - objs_owners : owner_id 안의 [obj1, 2, 3..] obj들이 모두 사라지면 owner_id를 삭제
+                - obj_state : obj_id 삭제 
+
+            삭제 기준
+            obj_state : max_missing_frame(5초)
+            pair_hist : owner_check에서 주종관계가 정해지면 삭제됨 but 주종관계가 끝까지 정해지지않으면 삭제되지 않음 
+                        새로운 삭제 기준 추가해야함 
+                        owner후보는 주종관계가 정해지기 전 id switch가 일어나면 새로운 id 기준으로 다시 owner check하면 되므로 owner가 사라지면 삭제해도 무방할것 같음
+                        -> owner_check에서 삭제하도록 하면 됨
+            obj_owner : object가 일정 frame이 지나도록 나타나지 않으면 삭제
+            objs_owner : owner_id의 스위치가일어나면 어차피 그 owner은 끝까지 없는 상태이므로 object들이 모두 사라지면 삭제
+                         어떤 object가 obj_owner에서 삭제되면
+                         그 object를 objs_owner[owner_id]에서도 제거
+                         그리고 그 owner가 가진 object가 하나도 없으면 owner_id 삭제
+
+        obj_state의 object를 기준으로 한다 => obj_state를 돌면서 last_seen과 현재 frame의 차이를 계산하는 방식 
+        '''
+        # 1. 삭제할 조건을 만족하는 id를 수집
+        delete_obj_ids = []
+        for obj_id, obj_info in self.obj_state.items():
+            last_seen = obj_info.get('last_seen') # state가 WITH_OWNER인 경우 값이 잆으므로 get을 통해 None을 반환하도록 한다 
+
+            if last_seen is None:
+                continue
+
+            lapse = frame_id - last_seen
+            if lapse >= self.clean_threshold:
+                delete_obj_ids.append(obj_id)
+
+        # 2. delete_obj_ids의 obj_id를 각 저장공간에서 삭제
+        for obj_id in delete_obj_ids:
+            # objs_owners는 owner_id가 key값이므로 빠르게 접근하여 삭제하기 위해 obj_state에서 삭제하기 전 owner_id를 추출
+            obj_info = self.obj_state.get(obj_id, {})
+            owner_id = obj_info.get('owner_id', None)
+
+            self.obj_state.pop(obj_id, None)
+            self.obj_owner.pop(obj_id, None)
+            
+            if owner_id is not None and owner_id in self.objs_owner: # owner가 정해지지 않은 분실물(object)이 있을 수도 있기에 필요한 조건문 
+                self.objs_owner[owner_id].discard(obj_id)
+
+                if not self.objs_owner[owner_id]:
+                    self.objs_owner.pop(owner_id, None)
+
+
     def _set_state(self, frame_id, obj_id, new_state):
         '''
             state update
@@ -433,6 +475,7 @@ def calc_distance(obj_bbox, person_bbox):
         2. object의 중심좌표와 person에서 가장 변동이 적은 안정적인 bottom의 중심좌표로 구하다 
         3. 최단거리를 각 변의 중심좌표와의 거리중 최단 거리를 선택한다 
         4. cctv에서 가장 잘 보이는 머리부분의 중심좌표 이용 ***
+        현재 1을 사용
     '''
     obj_cx, obj_cy = calc_center(obj_bbox)
     p_cx, p_cy = calc_center(person_bbox)
@@ -479,12 +522,12 @@ def calc_iou(bbox1, bbox2):
     # 교집합 좌표
     x1 = max(bbox1[0], bbox2[0])
     y1 = max(bbox1[1], bbox2[1])
-    x2 = max(bbox1[2], bbox2[2])
-    y2 = max(bbox1[3], bbox2[3])
+    x2 = min(bbox1[2], bbox2[2])
+    y2 = min(bbox1[3], bbox2[3])
 
     # 교집합 area
-    w = (x2 - x1) / 2
-    h = (y2 - y1) / 2
+    w = (x2 - x1)
+    h = (y2 - y1)
     inter_area = w * h
 
     # 합집합 : curr_bbox_area + obj_bbox_area - inter_area
@@ -492,6 +535,10 @@ def calc_iou(bbox1, bbox2):
     bbox2_area = (bbox2[2] - bbox2[0]) * (bbox2[3] - bbox2[1])
     union_area = bbox1_area + bbox2_area - inter_area
 
+    # 겹치는 부분이 없으면 0
+    if union_area <= 0:
+        return 0
+    
     # iou
     iou = inter_area / union_area
     return iou
