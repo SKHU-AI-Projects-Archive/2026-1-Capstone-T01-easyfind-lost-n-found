@@ -4,6 +4,7 @@ import numpy as np
 from enum import Enum
 
 class objectState(Enum):
+    UNASSIGNED = -1
     WITH_OWNER = 0
     SEPARATED = 1
     SUSPECTED = 2
@@ -25,7 +26,7 @@ class abandonedObject:
         self.suspect_threshold = self.suspect_threshold_min * 60 * self.fps
         self.lost_threshold = self.lost_threshold_min * 60 * self.fps
         self.clean_threshold = self.clean_threshold_sec * self.fps
-        self.prev_clean_threshold = self.prev_clean_threshold * self.fps
+        self.prev_clean_threshold = self.prev_clean_threshold_sec * self.fps
 
         self.score_threshold = config.get('score_threshold', 0.7)
         self.owner_frame_threshold = config.get('owner_frame_threshold', 30)
@@ -115,7 +116,9 @@ class abandonedObject:
         # 5. obj_owner에 매칭된 person과 object이 멀어짐을 감지하여 object의 상태를 업데이트
         # 일정 거리이상 멀어지면 objs_state['state'] = objectState.SEPARATED로 설정 
         # obj_id의 bbox를 obj_state[obj_id]['bbox']에 갱신
-        ''' TODO: owner 없는 objcet가 분리되어 고정된 상태인 경우 분실물로 처리하기 위한 상태관리 푤요 -> 이경우 아래 for for를 for obj_id, belongings in obj.items()로 수정해 돌아야한다 '''
+        ''' TODO: owner 없는 objcet가 분리되어 고정된 상태인 경우 분실물로 처리하기 위한 상태관리 필요 -> 이경우 아래 for for를 for obj_id, belongings in obj.items()로 수정해 돌아야한다 '''
+
+        # owner가 정해진 object에 대한 상태전이 
         for owner_id, obj_ids in self.objs_owner.items():
             for obj_id in obj_ids:
                 # obj_id나 owner_id가 현재 프레임에서 가려져 tracks에 존재하지않는 경우 갱신을 하지 않음
@@ -159,10 +162,14 @@ class abandonedObject:
                 else: 
                     self.obj_state[obj_id]['bbox'] = None
 
-                # object의 last seen frame 갱신 
+        # owenr가 정해지지 않은 object에 대한 분실물 처리 코드 추가 필요
+
+        # 7. 모든 object의 last seen frame 갱신 
+        for obj_id in obj:
+            if obj_id in self.obj_state:
                 self.obj_state[obj_id]['last_seen'] = frame_id
         
-        # 7. 저장공간 정리 
+        # 8. 저장공간 정리 
         self._clean(frame_id)
 
         return new_track_results
@@ -216,8 +223,21 @@ class abandonedObject:
         for obj in objects:
             obj_id = obj[4]
             obj_bbox = obj[0:4] 
+            # 모든 object를 관리하기 위해  obj_state에 저장한다 
+            if obj_id not in self.obj_state:
+                self.obj_state[obj_id] = {
+                    'owner_id' : None,
+                    'state' : objectState.UNASSIGNED,
+                    'bbox' : None,
+                    'last_seen' : frame_id,
+                    'separated_start' : None,
+                    'suspected_start' : None,
+                    'lost_start' : None
+                }
+
             # prev_bbox가 없으면 None으로 하여 초기화 
             self.prev_bbox.setdefault(obj_id, None)
+
             # 이미 owner가 정해진 object는 더이상 후보를 찾지 않는다 
             if obj_id in self.obj_owner: 
                 continue
@@ -266,19 +286,13 @@ class abandonedObject:
                 self.pair_hist[obj_id][maxScore_person] += 1 
                 if self.pair_hist[obj_id][maxScore_person] >= self.owner_frame_threshold:
                     owner_id = maxScore_person
-                    self.pair_hist.pop(obj_id)
+                    self.pair_hist.pop(obj_id, None)
                     self.obj_owner[obj_id] = owner_id
-                    self.objs_owner.setdefault(owner_id, set()).add(obj_id) # onwer_id가 있으면 add만 실행 없다면 새로 만든다 
-                    self.obj_state[obj_id] =  {'owner_id' : owner_id, 
-                                                        'state' : objectState.WITH_OWNER,
-                                                        'bbox' : None,
-                                                        'last_seen' : frame_id,
-                                                        'separated_start' : None,
-                                                        'suspected_start' : None,
-                                                        'lost_start' : None
-                                                        }
-                    
-        # prev_bbox, 에 업데이트
+                    self.objs_owner.setdefault(owner_id, set()).add(obj_id) # onwer_id가 있으면 add만 실행 없다면 새로 만든다 f
+                    self.obj_state[obj_id]['owner_id'] = owner_id
+                    self.obj_state[obj_id]['state'] = objectState.WITH_OWNER
+
+        # prev_bbox, prev_last_seen 업데이트
         for track in track_results:
             track_id = track[4]
             self.prev_bbox[track_id] = track[:4]
@@ -373,9 +387,9 @@ class abandonedObject:
         '''
         # 1. obj_state기준 object 삭제
         # 1-1 삭제할 조건을 만족하는 id를 수집
-        delete_obj_ids = set()
+        delete_obj_ids = []
         for obj_id, obj_info in self.obj_state.items():
-            last_seen = obj_info.get('last_seen') # state가 WITH_OWNER인 경우 값이 잆으므로 get을 통해 None을 반환하도록 한다 
+            last_seen = obj_info.get('last_seen') 
 
             if last_seen is None:
                 continue
@@ -392,6 +406,9 @@ class abandonedObject:
 
             self.obj_state.pop(obj_id, None)
             self.obj_owner.pop(obj_id, None)
+            self.pair_hist.pop(obj_id, None)
+            self.prev_bbox.pop(obj_id, None)
+            self.prev_last_seen.pop(obj_id, None)
             
             if owner_id is not None and owner_id in self.objs_owner: # owner가 정해지지 않은 분실물(object)이 있을 수도 있기에 필요한 조건문 
                 self.objs_owner[owner_id].discard(obj_id)
@@ -401,8 +418,12 @@ class abandonedObject:
         
         # 2. prev_bbox 정리
         # 2-1 삭제할 조건을 만족하는 id 수집
-        delete_prev_ids = set()
+        delete_prev_ids = []
         for track_id, last_seen in self.prev_last_seen.items():
+
+            if last_seen is None:
+                continue
+
             lapse = frame_id - last_seen
 
             if lapse >= self.prev_clean_threshold:
@@ -546,8 +567,8 @@ def calc_iou(bbox1, bbox2):
     y2 = min(bbox1[3], bbox2[3])
 
     # 교집합 area
-    w = (x2 - x1)
-    h = (y2 - y1)
+    w = max(0, (x2 - x1))
+    h = max(0, (y2 - y1))
     inter_area = w * h
 
     # 합집합 : curr_bbox_area + obj_bbox_area - inter_area
