@@ -19,11 +19,13 @@ class abandonedObject:
         self.suspect_threshold_min = config.get('suspect_threshold', 15) # minute : separated로붙 15분 
         self.lost_threshold_min = config.get('lost_threshold', 15) # minute : suspected로 부터 15분
         self.clean_threshold_sec = config.get('clean_threshold_sec', 3) # second : last_seen - current frame 가 일정 second를 지나면 딕셔너리에서 삭제 
+        self.prev_clean_threshold_sec = config.get('prev_clean_threshold', 1) # second : last_seen - current frame이 일정 second를 지나면 prev_bbox, prev_last_seen에서 삭제
 
         # 프레임으로 계산하여 처리하는 것이 time함수를 사용하는것보다 안정적
         self.suspect_threshold = self.suspect_threshold_min * 60 * self.fps
         self.lost_threshold = self.lost_threshold_min * 60 * self.fps
         self.clean_threshold = self.clean_threshold_sec * self.fps
+        self.prev_clean_threshold = self.prev_clean_threshold * self.fps
 
         self.score_threshold = config.get('score_threshold', 0.7)
         self.owner_frame_threshold = config.get('owner_frame_threshold', 30)
@@ -38,6 +40,7 @@ class abandonedObject:
         # 이동벡터를 구하기 위해 이전 bbox를 저장하는 딕셔너리
         # 저장형태: {track_id : prev_bbox}
         self.prev_bbox = {} 
+        self.prev_last_seen = {}
 
         self.objs_owner = {} # owner를 기준으로 objects목록을 찾는다 
         self.obj_owner = {} # object를 기준으로 owner가 있는지 찾는다 
@@ -275,9 +278,11 @@ class abandonedObject:
                                                         'lost_start' : None
                                                         }
                     
-        # prev_bbox에 업데이트
+        # prev_bbox, 에 업데이트
         for track in track_results:
-            self.prev_bbox[track[4]] = track[:4]
+            track_id = track[4]
+            self.prev_bbox[track_id] = track[:4]
+            self.prev_last_seen[track_id] = frame_id
 
     def _restore_objId(self, obj):
         '''
@@ -350,6 +355,7 @@ class abandonedObject:
                 - obj_owner : obj_id를 삭제
                 - objs_owners : owner_id 안의 [obj1, 2, 3..] obj들이 모두 사라지면 owner_id를 삭제
                 - obj_state : obj_id 삭제 
+                - prev_bbox : obj_id 삭제, person_id도 삭제해야한다 => self.prev_last_seen을 따로 만들어 일정 프레임이 지나면 삭제하는 것이 좋아보인다 
 
             삭제 기준
             obj_state : max_missing_frame(5초)
@@ -365,8 +371,9 @@ class abandonedObject:
 
         obj_state의 object를 기준으로 한다 => obj_state를 돌면서 last_seen과 현재 frame의 차이를 계산하는 방식 
         '''
-        # 1. 삭제할 조건을 만족하는 id를 수집
-        delete_obj_ids = []
+        # 1. obj_state기준 object 삭제
+        # 1-1 삭제할 조건을 만족하는 id를 수집
+        delete_obj_ids = set()
         for obj_id, obj_info in self.obj_state.items():
             last_seen = obj_info.get('last_seen') # state가 WITH_OWNER인 경우 값이 잆으므로 get을 통해 None을 반환하도록 한다 
 
@@ -377,7 +384,7 @@ class abandonedObject:
             if lapse >= self.clean_threshold:
                 delete_obj_ids.append(obj_id)
 
-        # 2. delete_obj_ids의 obj_id를 각 저장공간에서 삭제
+        # 1-2 delete_obj_ids의 obj_id를 각 저장공간에서 삭제
         for obj_id in delete_obj_ids:
             # objs_owners는 owner_id가 key값이므로 빠르게 접근하여 삭제하기 위해 obj_state에서 삭제하기 전 owner_id를 추출
             obj_info = self.obj_state.get(obj_id, {})
@@ -391,6 +398,19 @@ class abandonedObject:
 
                 if not self.objs_owner[owner_id]:
                     self.objs_owner.pop(owner_id, None)
+        
+        # 2. prev_bbox 정리
+        # 2-1 삭제할 조건을 만족하는 id 수집
+        delete_prev_ids = set()
+        for track_id, last_seen in self.prev_last_seen.items():
+            lapse = frame_id - last_seen
+
+            if lapse >= self.prev_clean_threshold:
+                delete_prev_ids.append(track_id)
+        
+        for track_id in delete_prev_ids:
+            self.prev_bbox.pop(track_id, None)
+            self.prev_last_seen.pop(track_id, None)
 
 
     def _set_state(self, frame_id, obj_id, new_state):
