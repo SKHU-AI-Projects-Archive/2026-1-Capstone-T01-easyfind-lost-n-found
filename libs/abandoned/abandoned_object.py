@@ -268,13 +268,17 @@ class abandonedObject:
                     이 경우 score를 1- distance/dist_threshold로 만 게산할지 생각해봐야함 
                     이유: 첫 등장 프레임에서 score계산이 안됨(이는 원래 의도한대로이긴 함)
                 '''
-                if self.prev_bbox[obj_id] is None or self.prev_bbox[person_id] is None:
-                    continue
+                if self.prev_bbox[obj_id] is None or self.prev_bbox[person_id] is None: 
+                    owner_score = 1 - distance
 
                 # owner socre를 계산하여 maxScore_person에 person_id를 갱신
-                owner_score = self._calc_ownerScore(obj_bbox, person_bbox, 
-                                                    self.prev_bbox[obj_id], self.prev_bbox[person_id], 
-                                                    self.dist_threshold)
+                else: 
+                    owner_score = self._calc_ownerScore(obj_bbox, 
+                                                          person_bbox, 
+                                                          self.prev_bbox[obj_id], 
+                                                          self.prev_bbox[person_id], 
+                                                          self.dist_threshold)
+                    
                 if owner_score > max_score:
                     max_score = owner_score
                     maxScore_person = person_id
@@ -284,11 +288,14 @@ class abandonedObject:
             # + objs_state에 obj를 새로 추가한 후 'state'를 with owner로 초기화 한다 
             if maxScore_person is not None and max_score >= self.score_threshold: 
                 self.pair_hist[obj_id][maxScore_person] += 1 
+
                 if self.pair_hist[obj_id][maxScore_person] >= self.owner_frame_threshold:
                     owner_id = maxScore_person
                     self.pair_hist.pop(obj_id, None)
+
                     self.obj_owner[obj_id] = owner_id
-                    self.objs_owner.setdefault(owner_id, set()).add(obj_id) # onwer_id가 있으면 add만 실행 없다면 새로 만든다 f
+                    self.objs_owner.setdefault(owner_id, set()).add(obj_id) # onwer_id가 있으면 add만 실행 없다면 새로 만든다 
+                    
                     self.obj_state[obj_id]['owner_id'] = owner_id
                     self.obj_state[obj_id]['state'] = objectState.WITH_OWNER
 
@@ -472,7 +479,7 @@ class abandonedObject:
 
         obj_mv = calc_motionVector(obj_bbox, prev_obj)
         person_mv = calc_motionVector(person_bbox, prev_person)
-        owner_score = (1 - distance/dist_threshold) + calc_cosineSim(obj_mv, person_mv)# 모션벡터의 코사인 유사도를 더해야함 
+        owner_score = (1 - distance) + calc_cosineSim(obj_mv, person_mv)# 모션벡터의 코사인 유사도를 더해야함 
 
         return owner_score
     
