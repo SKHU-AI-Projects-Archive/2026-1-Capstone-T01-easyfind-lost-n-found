@@ -9,8 +9,16 @@ class WebcamSource(BaseSource):
         self.width = int(config.get("width", 1920))
         self.height = int(config.get("height", 1080))
         self.fps = float(config.get("fps", 30))
+        
+        import platform
+        if platform.system() == "Windows":
+            backend = cv2.CAP_DSHOW
+        elif platform.system() == "Linux":
+            backend = cv2.CAP_V4L2
+        else:
+            backend = cv2.CAP_ANY
 
-        self.cap = cv2.VideoCapture(self.device_index, cv2.CAP_DSHOW)
+        self.cap = cv2.VideoCapture(self.device_index, backend)
         if not self.cap.isOpened():
             raise RuntimeError(f"Cannot open camera: {self.device_index}")
 
