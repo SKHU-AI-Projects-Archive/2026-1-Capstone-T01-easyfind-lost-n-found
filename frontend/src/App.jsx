@@ -3,6 +3,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/dashboard'
 import DetectionHistory from './pages/DetectionHistory'
 import Alerts from './pages/Alerts'
+import Settings from './pages/Settings'
 import Layout from './Layout'
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
         <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
         <Route path="/detection-history" element={<Layout><DetectionHistory /></Layout>} />
         <Route path="/alerts" element={<Layout><Alerts /></Layout>} />
+        <Route path="/settings" element={<Layout><Settings /></Layout>} />
       </Routes>
     </BrowserRouter>
   )
