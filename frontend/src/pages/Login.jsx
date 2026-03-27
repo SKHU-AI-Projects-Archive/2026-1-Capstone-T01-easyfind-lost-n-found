@@ -64,19 +64,20 @@ function Login() {
           }}
         />
         <input
-          type="password"
-          placeholder="Enter your password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '12px 16px',
-            border: '1px solid #ddd',
-            borderRadius: '8px',
-            fontSize: '14px',
-            boxSizing: 'border-box',
-          }}
-        />
+        type="password"
+        placeholder="Enter your password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') handleLogin() }}
+        style={{
+        width: '100%',
+        padding: '12px 16px',
+        border: '1px solid #ddd',
+        borderRadius: '8px',
+        fontSize: '14px',
+        boxSizing: 'border-box',
+         }}
+/>
         <button
           onClick={handleLogin}
           style={{
