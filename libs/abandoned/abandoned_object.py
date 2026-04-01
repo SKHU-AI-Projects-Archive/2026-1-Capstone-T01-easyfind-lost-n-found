@@ -17,10 +17,16 @@ class abandonedObject:
         self.fps = config.get('fps', 30)
 
         self.dist_threshold = config.get('dist_threshold', 0.05) # distance 정규화된 좌표를 기준으로 설정해야한다 
-        self.suspect_threshold_min = config.get('suspect_threshold', 15) # minute : separated로붙 15분 
-        self.lost_threshold_min = config.get('lost_threshold', 15) # minute : suspected로 부터 15분
+        self.suspect_threshold_min = config.get('suspect_threshold_min', 15) # minute : separated로부터 15분 
+        self.lost_threshold_min = config.get('lost_threshold_min', 15) # minute : suspected로부터 15분
+        self.unassigned_threshold_min = config.get('unassigned_threshold_min', 5)
+
         self.clean_threshold_sec = config.get('clean_threshold_sec', 3) # second : last_seen - current frame 가 일정 second를 지나면 딕셔너리에서 삭제 
         self.prev_clean_threshold_sec = config.get('prev_clean_threshold', 1) # second : last_seen - current frame이 일정 second를 지나면 prev_bbox, prev_last_seen에서 삭제
+
+        self.unassigned_threshold = self.unassigned_threshold_min * 60 * 30
+        self.static_dist_threshold = config.get('static_dist_threshold', 0.01)
+        self.iou_threshold = config.get('iou_threshold', 0.9)
 
         # 프레임으로 계산하여 처리하는 것이 time함수를 사용하는것보다 안정적
         self.suspect_threshold = self.suspect_threshold_min * 60 * self.fps
@@ -66,6 +72,7 @@ class abandonedObject:
                             'separated_start' : ?
                             'suspected_start' : ?,
                             'lost_start' : ?,
+                            'static_start' : ?,
                             'restart_with_owner' : ? 누군가 다시 가져갈 수 있으므로 시작점 기록}
                 - state = 2인경우 class(object의 종류)와 color(추후 색구분/추출하는 방법을 찾는경우 추가) 정보도 추가 
 
@@ -116,9 +123,7 @@ class abandonedObject:
         # 5. obj_owner에 매칭된 person과 object이 멀어짐을 감지하여 object의 상태를 업데이트
         # 일정 거리이상 멀어지면 objs_state['state'] = objectState.SEPARATED로 설정 
         # obj_id의 bbox를 obj_state[obj_id]['bbox']에 갱신
-        ''' TODO: owner 없는 objcet가 분리되어 고정된 상태인 경우 분실물로 처리하기 위한 상태관리 필요 -> 이경우 아래 for for를 for obj_id, belongings in obj.items()로 수정해 돌아야한다 '''
-
-        # owner가 정해진 object에 대한 상태전이 
+        ''' owner가 정해진 object에 대한 상태전이 '''
         for owner_id, obj_ids in self.objs_owner.items():
             for obj_id in obj_ids:
                 # obj_id나 owner_id가 현재 프레임에서 가려져 tracks에 존재하지않는 경우 갱신을 하지 않음
@@ -162,14 +167,61 @@ class abandonedObject:
                 else: 
                     self.obj_state[obj_id]['bbox'] = None
 
-        # owenr가 정해지지 않은 object에 대한 분실물 처리 코드 추가 필요
+        ''' owenr가 정해지지 않은 object(state : unassinged)에 대한 분실물 여부 판단, 상태 갱신 '''
+        for obj_id, obj_track in obj.items():
 
+            if obj_id not in self.obj_state: # 혹시모를 obj_state에 obj_id가 업데이트 안되어있을 경우 (owner_check에서 갱신하도록 되어있긴함)
+                continue
+
+            if self.obj_state[obj_id].get('owner_id') is not None:
+                continue
+
+            state = self.obj_state[obj_id].get('state')
+
+            # SUSPECTED → LOST
+            if state == objectState.SUSPECTED:
+                if self._turn_lost(obj_id, frame_id):
+                    new_state = objectState.LOST
+                    self._set_state(frame_id, obj_id, new_state)
+                continue
+
+            if state != objectState.UNASSIGNED:
+                continue
+
+            curr_bbox = obj_track[:4]
+            prev_bbox = self.prev_bbox.get(obj_id)
+
+            is_static = self._is_static(curr_bbox, prev_bbox)
+            if is_static:
+                if self.obj_state[obj_id]['static_start'] is None:
+                    self.obj_state[obj_id]['static_start'] = frame_id
+
+            else:
+                self.obj_state[obj_id]['static_start'] = None
+                continue
+
+            static_start = self.obj_state[obj_id]['static_start']
+            lapse = frame_id - static_start
+
+            # UNASSIGNED → SUSPECTED
+            if lapse >= self.unassigned_threshold:
+                new_state = objectState.SUSPECTED
+                self._set_state(frame_id, obj_id, new_state)
+                self.obj_state[obj_id]['bbox'] = curr_bbox # suspected로 변경하였으므로 bbox도 갱신해주어야한다
+                
+        
         # 7. 모든 object의 last seen frame 갱신 
         for obj_id in obj:
             if obj_id in self.obj_state:
                 self.obj_state[obj_id]['last_seen'] = frame_id
+
+        # 8. prev_bbox, prev_last_seen 업데이트
+        for track in new_track_results:
+            track_id = track[4]
+            self.prev_bbox[track_id] = track[:4]
+            self.prev_last_seen[track_id] = frame_id
         
-        # 8. 저장공간 정리 
+        # 9. 저장공간 정리 
         self._clean(frame_id)
 
         return new_track_results
@@ -232,7 +284,8 @@ class abandonedObject:
                     'last_seen' : frame_id,
                     'separated_start' : None,
                     'suspected_start' : None,
-                    'lost_start' : None
+                    'lost_start' : None,
+                    'static_start' : None
                 }
 
             # prev_bbox가 없으면 None으로 하여 초기화 
@@ -269,7 +322,7 @@ class abandonedObject:
                     이유: 첫 등장 프레임에서 score계산이 안됨(이는 원래 의도한대로이긴 함)
                 '''
                 if self.prev_bbox[obj_id] is None or self.prev_bbox[person_id] is None: 
-                    owner_score = 1 - distance
+                    owner_score = 1 - distance / self.dist_threshold
 
                 # owner socre를 계산하여 maxScore_person에 person_id를 갱신
                 else: 
@@ -295,15 +348,15 @@ class abandonedObject:
 
                     self.obj_owner[obj_id] = owner_id
                     self.objs_owner.setdefault(owner_id, set()).add(obj_id) # onwer_id가 있으면 add만 실행 없다면 새로 만든다 
-                    
+
                     self.obj_state[obj_id]['owner_id'] = owner_id
                     self.obj_state[obj_id]['state'] = objectState.WITH_OWNER
-
+        '''
         # prev_bbox, prev_last_seen 업데이트
         for track in track_results:
             track_id = track[4]
             self.prev_bbox[track_id] = track[:4]
-            self.prev_last_seen[track_id] = frame_id
+            self.prev_last_seen[track_id] = frame_id'''
 
     def _restore_objId(self, obj):
         '''
@@ -479,7 +532,7 @@ class abandonedObject:
 
         obj_mv = calc_motionVector(obj_bbox, prev_obj)
         person_mv = calc_motionVector(person_bbox, prev_person)
-        owner_score = (1 - distance) + calc_cosineSim(obj_mv, person_mv)# 모션벡터의 코사인 유사도를 더해야함 
+        owner_score = (1 - distance / self.dist_threshold) + calc_cosineSim(obj_mv, person_mv)# 모션벡터의 코사인 유사도를 더해야함 
 
         return owner_score
     
@@ -500,6 +553,23 @@ class abandonedObject:
             return True
         else:
             return False
+        
+    def _is_static(self, curr_bbox, prev_bbox):
+        '''
+            curr_bbox가 prev_bbox와 비교했을때 고정된 상태로 볼 수 있는가를 판단
+            두 박스의 iou, distance를 구하여 각 threshold를 통해 판단
+        '''
+        if curr_bbox is None or prev_bbox is None:
+            return False
+
+        iou = calc_iou(curr_bbox, prev_bbox)
+        distance = calc_distance(curr_bbox, prev_bbox)
+        
+        if iou >= self.iou_threshold and distance <= self.static_dist_threshold:
+            return True
+        
+        return False
+
 
 '''
     아래 코드들은 추후 utils.py로 분리
