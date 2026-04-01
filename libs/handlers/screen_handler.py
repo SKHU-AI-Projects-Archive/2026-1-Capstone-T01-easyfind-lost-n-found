@@ -49,7 +49,7 @@ class ScreenHandler(BaseHandler):
         if self.draw_dets:
             for det in detections:
                 x1, y1, x2, y2 = self._to_pixel(det[:4])
-                cid = int(det[-1])
+                cid = det[-1]
                 color = self.class_color(cid)
                 self.rectangle_dot(frame, x1, y1, x2, y2, color, 2)
                 #cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
@@ -58,7 +58,7 @@ class ScreenHandler(BaseHandler):
             for trk in tracks:
                 x1, y1, x2, y2 = self._to_pixel(trk[:4])
                 tid = int(trk[4])
-                cid = int(trk[5])
+                cid = trk[5]
                 color = self.class_color(cid)
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                 cv2.putText(frame, f"ID:{tid}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)

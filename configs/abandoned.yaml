@@ -34,7 +34,7 @@ pipelines:
       classes: [person, bag]
 
     abandoned:
-      type: "abandonedDetector"
+      type: "abandonedObject"
       dist_threshold : 0.05
       suspect_threshold_min : 15
       lost_threshold_min : 15
@@ -43,6 +43,7 @@ pipelines:
       restore_threshold : 0.7
       clean_threshold_sec : 3
       prev_clean_threshold_sec : 2
+      fps: 30
 
 output:
   mode: "sync"

@@ -24,11 +24,11 @@ class abandonedObject:
         self.clean_threshold_sec = config.get('clean_threshold_sec', 3) # second : last_seen - current frame 가 일정 second를 지나면 딕셔너리에서 삭제 
         self.prev_clean_threshold_sec = config.get('prev_clean_threshold', 1) # second : last_seen - current frame이 일정 second를 지나면 prev_bbox, prev_last_seen에서 삭제
 
-        self.unassigned_threshold = self.unassigned_threshold_min * 60 * 30
         self.static_dist_threshold = config.get('static_dist_threshold', 0.01)
         self.iou_threshold = config.get('iou_threshold', 0.9)
 
         # 프레임으로 계산하여 처리하는 것이 time함수를 사용하는것보다 안정적
+        self.unassigned_threshold = self.unassigned_threshold_min * 60 * self.fps
         self.suspect_threshold = self.suspect_threshold_min * 60 * self.fps
         self.lost_threshold = self.lost_threshold_min * 60 * self.fps
         self.clean_threshold = self.clean_threshold_sec * self.fps
