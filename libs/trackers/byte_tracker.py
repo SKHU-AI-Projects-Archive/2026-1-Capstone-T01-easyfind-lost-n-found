@@ -197,6 +197,8 @@ class BYTETracker(BaseTracker):
         self.match_thresh = config.get('match_thresh', 0.8)
         self.max_time_lost = self.buffer_size
         self.kalman_filter = KalmanFilter()
+
+        self.classes = config.get('classes', [])
         # 확인용
         print('[BYTE Tracker] Initialized')
 
@@ -439,13 +441,16 @@ class BYTETracker(BaseTracker):
         output_list = []
         for strack in output_stracks:
             x1, y1, x2, y2 = strack.tlbr
+            cls_id = int(strack.class_id)
+            cls_name = self.classes[cls_id] if cls_id < len(self.classes) else cls_id
+
             output_list.append([
                 float(x1 / img_w),
                 float(y1 / img_h),
                 float(x2 / img_w),
                 float(y2 / img_h),
                 int(strack.track_id),
-                int(strack.class_id)
+                cls_name
             ])
 
         return output_list
