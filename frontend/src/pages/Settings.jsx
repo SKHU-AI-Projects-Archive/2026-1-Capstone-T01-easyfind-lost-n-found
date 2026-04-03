@@ -1,17 +1,23 @@
 import { useState } from 'react'
 
 function Settings() {
-  const [cameras, setCameras] = useState([
-    { id: 'CAM-A2', name: 'Terminal A - Gate 12', location: 'Terminal A', enabled: true },
-    { id: 'CAM-B1', name: 'Food Court - Main Area', location: 'Food Court', enabled: true },
-    { id: 'CAM-C4', name: 'East Entrance - Lobby', location: 'East Entrance', enabled: true },
-    { id: 'CAM-D3', name: 'West Wing - Corridor', location: 'West Wing', enabled: false },
-  ])
-  const [suspectedTime, setSuspectedTime] = useState(5)
-  const [confirmedTime, setConfirmedTime] = useState(10)
-  const [objectTypes, setObjectTypes] = useState({ Backpack: true, Handbag: true, Luggage: true, Coat: true })
-  const [adminAlerts, setAdminAlerts] = useState(true)
-  const [alertSound, setAlertSound] = useState(true)
+  const [cameras, setCameras] = useState(() => {
+    const saved = localStorage.getItem('cameras')
+    return saved ? JSON.parse(saved) : [
+      { id: 'CAM-A2', name: 'Terminal A - Gate 12', location: 'Terminal A', enabled: true },
+      { id: 'CAM-B1', name: 'Food Court - Main Area', location: 'Food Court', enabled: true },
+      { id: 'CAM-C4', name: 'East Entrance - Lobby', location: 'East Entrance', enabled: true },
+      { id: 'CAM-D3', name: 'West Wing - Corridor', location: 'West Wing', enabled: false },
+    ]
+  })
+  const [suspectedTime, setSuspectedTime] = useState(() => localStorage.getItem('suspectedTime') || 5)
+  const [confirmedTime, setConfirmedTime] = useState(() => localStorage.getItem('confirmedTime') || 10)
+  const [objectTypes, setObjectTypes] = useState(() => {
+    const saved = localStorage.getItem('objectTypes')
+    return saved ? JSON.parse(saved) : { Backpack: true, Handbag: true, Luggage: true, Coat: true }
+  })
+  const [adminAlerts, setAdminAlerts] = useState(() => localStorage.getItem('adminAlerts') !== 'false')
+  const [alertSound, setAlertSound] = useState(() => localStorage.getItem('alertSound') !== 'false')
 
   const toggleCamera = (id) => {
     setCameras(cameras.map(c => c.id === id ? { ...c, enabled: !c.enabled } : c))
@@ -29,12 +35,15 @@ function Settings() {
     marginBottom: '16px',
   }
 
-  const sectionTitle = {
+  const sectionTitleStyle = {
     fontSize: '15px',
     fontWeight: '600',
     marginBottom: '16px',
     paddingBottom: '12px',
     borderBottom: '1px solid #f3f4f6',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   }
 
   const toggleStyle = (enabled) => ({
@@ -66,7 +75,10 @@ function Settings() {
 
       {/* Camera Settings */}
       <div style={sectionStyle}>
-        <div style={sectionTitle}>Camera Settings</div>
+        <div style={sectionTitleStyle}>
+          <span style={{ fontSize: '18px' }}>📷</span>
+          Camera Settings
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {cameras.map((cam) => (
             <div key={cam.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#f9fafb', borderRadius: '8px' }}>
@@ -87,7 +99,10 @@ function Settings() {
 
       {/* Detection Settings */}
       <div style={sectionStyle}>
-        <div style={sectionTitle}>Detection Settings</div>
+        <div style={sectionTitleStyle}>
+          <span style={{ fontSize: '18px' }}>🎯</span>
+          Detection Settings
+        </div>
 
         <div style={{ marginBottom: '20px' }}>
           <div style={{ fontWeight: '500', fontSize: '14px', marginBottom: '12px' }}>Detection Thresholds</div>
@@ -107,18 +122,34 @@ function Settings() {
 
         <div>
           <div style={{ fontWeight: '500', fontSize: '14px', marginBottom: '12px' }}>Object Types to Detect</div>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             {Object.keys(objectTypes).map((type) => (
               <div key={type} onClick={() => toggleObject(type)} style={{
-                padding: '8px 16px',
-                borderRadius: '20px',
-                border: `1px solid ${objectTypes[type] ? '#1a1f2e' : '#e5e7eb'}`,
-                background: objectTypes[type] ? '#1a1f2e' : 'white',
-                color: objectTypes[type] ? 'white' : '#6b7280',
-                fontSize: '13px',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb',
+                background: 'white',
+                fontSize: '14px',
                 cursor: 'pointer',
-                fontWeight: objectTypes[type] ? '600' : '400',
-              }}>{type}</div>
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '4px',
+                  background: objectTypes[type] ? '#378ADD' : 'white',
+                  border: objectTypes[type] ? '2px solid #378ADD' : '2px solid #d1d5db',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  {objectTypes[type] && <span style={{ color: 'white', fontSize: '12px', fontWeight: '700' }}>✓</span>}
+                </div>
+                <span style={{ color: '#1a1f2e' }}>{type}</span>
+              </div>
             ))}
           </div>
         </div>
@@ -126,7 +157,10 @@ function Settings() {
 
       {/* Notification Settings */}
       <div style={sectionStyle}>
-        <div style={sectionTitle}>Notification Settings</div>
+        <div style={sectionTitleStyle}>
+          <span style={{ fontSize: '18px' }}>🔔</span>
+          Notification Settings
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {[
             { label: 'Admin Alerts', desc: 'Receive notifications for all detected items', value: adminAlerts, toggle: () => setAdminAlerts(!adminAlerts) },
@@ -146,16 +180,29 @@ function Settings() {
       </div>
 
       {/* Save Button */}
-      <button onClick={() => alert('Settings saved!')} style={{
+      <button onClick={() => {
+        localStorage.setItem('cameras', JSON.stringify(cameras))
+        localStorage.setItem('suspectedTime', suspectedTime)
+        localStorage.setItem('confirmedTime', confirmedTime)
+        localStorage.setItem('objectTypes', JSON.stringify(objectTypes))
+        localStorage.setItem('adminAlerts', adminAlerts)
+        localStorage.setItem('alertSound', alertSound)
+        alert('Settings saved!')
+      }} style={{
         padding: '12px 32px',
-        background: '#1a1f2e',
+        background: '#22c55e',
         color: 'white',
         border: 'none',
         borderRadius: '8px',
         fontSize: '14px',
         fontWeight: '600',
         cursor: 'pointer',
-      }}>Save Settings</button>
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+      }}>
+        💾 Save Settings
+      </button>
     </div>
   )
 }
