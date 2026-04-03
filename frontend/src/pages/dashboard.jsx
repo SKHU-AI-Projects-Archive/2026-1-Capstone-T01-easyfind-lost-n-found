@@ -1,6 +1,20 @@
+import { useEffect, useState } from "react";
+import { checkStatus } from "../api";
+
 function Dashboard() {
+  const [backendStatus, setBackendStatus] = useState(null);
+
+  useEffect(() => {
+    checkStatus().then(data => setBackendStatus(data.status));
+  }, []);
+
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', overflow: 'auto' }}>
+
+      {/* 백엔드 연결 상태 확인용 (나중에 지워도 됨) */}
+      <div style={{ background: backendStatus === 'ok' ? '#dcfce7' : '#fee2e2', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', color: backendStatus === 'ok' ? '#16a34a' : '#dc2626' }}>
+        백엔드 상태: {backendStatus === 'ok' ? '✅ 연결됨' : '❌ 연결 안됨'}
+      </div>
 
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
