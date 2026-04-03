@@ -224,7 +224,17 @@ class abandonedObject:
         # 9. 저장공간 정리 
         self._clean(frame_id)
 
-        return new_track_results
+        # 10. new track results에 state 정보 추가 -> 화면 출력시 suspected: orange / lost: red 
+        results = []
+        for track in new_track_results:
+            track_id = track[4]
+            state = self.obj_state[track_id].get('state') if track_id in self.obj_state else None
+            results.append(list(track) + [state.name if state else None])
+
+        #for obj_id, obj in self.obj_state:
+            #print('state: ', obj['state'])
+
+        return results
     
     def _owner_check(self, frame_id, track_results):
         '''

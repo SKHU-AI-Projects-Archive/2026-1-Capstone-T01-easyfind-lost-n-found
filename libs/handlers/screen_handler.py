@@ -50,7 +50,7 @@ class ScreenHandler(BaseHandler):
             for det in detections:
                 x1, y1, x2, y2 = self._to_pixel(det[:4])
                 cid = det[-1]
-                color = self.class_color(cid)
+                color = self.class_color(cid, None)
                 self.rectangle_dot(frame, x1, y1, x2, y2, color, 2)
                 #cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
@@ -59,7 +59,8 @@ class ScreenHandler(BaseHandler):
                 x1, y1, x2, y2 = self._to_pixel(trk[:4])
                 tid = int(trk[4])
                 cid = trk[5]
-                color = self.class_color(cid)
+                state = trk[6]
+                color = self.class_color(cid, state)
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                 cv2.putText(frame, f"ID:{tid}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
@@ -96,13 +97,22 @@ class ScreenHandler(BaseHandler):
         return color'''
     
     ''' class_id를 seed로 하여 클래스별 랜덤한 색을 가지게함 '''
-    def class_color(self, class_id):
-        random.seed(class_id)
-        color = (
-            random.randint(0, 255),
-            random.randint(0, 255),
-            random.randint(0, 255)
-        )
+    def class_color(self, class_id, state):
+
+        if state == 'SUSPECTED' or state == 'LOST':
+            if state == 'SUSPECTED':
+                color = (0, 165, 255)
+
+            elif state == 'LOST':
+                color = (0, 0, 255)
+
+        else:
+            random.seed(class_id)
+            color = (
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(0, 255)
+            )
         return color 
     
     ''' 점선 그리는 함수 '''
