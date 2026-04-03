@@ -6,6 +6,7 @@ function Dashboard() {
   const navigate = useNavigate()
   const focusCam = location.state?.focusCam || null
   const [modalCam, setModalCam] = useState(null)
+  const [zoom, setZoom] = useState(1)
 
   const cams = [
     { id: 'CAM-A2', name: 'CAM-A2 — 1F Entrance', status: 'Suspected', statusColor: '#f59e0b', msg: 'Backpack stationary (32s)' },
@@ -21,6 +22,11 @@ function Dashboard() {
       navigate('/dashboard', { replace: true, state: {} })
     }
   }, [])
+
+  const handleOpenModal = (cam) => {
+    setModalCam(cam)
+    setZoom(1)
+  }
 
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', overflow: 'auto' }}>
@@ -42,7 +48,7 @@ function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', flex: 1 }}>
         {cams.map((cam) => (
           <div key={cam.id}
-            onClick={() => setModalCam(cam)}
+            onClick={() => handleOpenModal(cam)}
             style={{
               background: '#111827',
               borderRadius: '10px',
@@ -112,6 +118,7 @@ function Dashboard() {
           <div onClick={e => e.stopPropagation()} style={{
             background: '#111827', borderRadius: '12px', padding: '20px', width: '700px',
           }}>
+            {/* 모달 상단 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ color: 'white', fontWeight: '600', fontSize: '15px' }}>{modalCam.name}</span>
@@ -119,10 +126,33 @@ function Dashboard() {
               </div>
               <button onClick={() => setModalCam(null)} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '20px', cursor: 'pointer' }}>✕</button>
             </div>
-            <div style={{ background: '#1f2937', borderRadius: '8px', height: '380px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-              <span style={{ color: '#4b5563', fontSize: '14px' }}>Connecting to stream...</span>
+
+            {/* 영상 영역 */}
+            <div style={{ background: '#1f2937', borderRadius: '8px', height: '380px', overflow: 'hidden', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ color: '#4b5563', fontSize: '14px' }}>Connecting to stream...</span>
+              </div>
             </div>
-            <div style={{ fontSize: '12px', color: modalCam.statusColor }}>{modalCam.status} — {modalCam.msg}</div>
+
+            {/* 하단 컨트롤 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '12px', color: modalCam.statusColor }}>{modalCam.status} — {modalCam.msg}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ color: '#9ca3af', fontSize: '12px' }}>Zoom: {Math.round(zoom * 100)}%</span>
+                <button onClick={() => setZoom(z => Math.max(1, parseFloat((z - 0.25).toFixed(2))))} style={{
+                  background: '#374151', color: 'white', border: 'none', borderRadius: '6px',
+                  width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>−</button>
+                <button onClick={() => setZoom(z => Math.min(3, parseFloat((z + 0.25).toFixed(2))))} style={{
+                  background: '#374151', color: 'white', border: 'none', borderRadius: '6px',
+                  width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>+</button>
+                <button onClick={() => setZoom(1)} style={{
+                  background: '#374151', color: '#9ca3af', border: 'none', borderRadius: '6px',
+                  padding: '0 10px', height: '32px', fontSize: '12px', cursor: 'pointer'
+                }}>Reset</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
