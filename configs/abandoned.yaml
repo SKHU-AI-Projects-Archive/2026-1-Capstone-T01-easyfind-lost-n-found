@@ -35,14 +35,20 @@ pipelines:
 
     abandoned:
       type: "abandonedObject"
-      dist_threshold : 0.05
+      dist_threshold : 0.08
+      static_dist_threshold : 0.01
+
       suspect_threshold_min : 15
       lost_threshold_min : 15
       unassigned_threshold_min : 5
-      owner_frame_threshold : 30
-      restore_threshold : 0.7
+
       clean_threshold_sec : 3
       prev_clean_threshold_sec : 2
+
+      score_threshold : 0.7
+      restore_threshold : 0.7
+      owner_frame_threshold : 30
+      iou_threshold : 0.75
       fps: 30
 
 output:
