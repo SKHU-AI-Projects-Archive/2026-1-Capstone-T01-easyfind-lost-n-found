@@ -178,6 +178,10 @@ class abandonedObject:
 
             state = self.obj_state[obj_id].get('state')
 
+            # SEPARATED, SUSPECTED, LOST 상태일 때 매 프레임 bbox 갱신 (restore_id를 위해)
+            if state in (objectState.SUSPECTED, objectState.LOST):
+                self.obj_state[obj_id]['bbox'] = obj_track[:4]
+
             # SUSPECTED → LOST
             if state == objectState.SUSPECTED:
                 if self._turn_lost(obj_id, frame_id):
