@@ -129,18 +129,18 @@ class abandonedObject:
                 # obj_id나 owner_id가 현재 프레임에서 가려져 tracks에 존재하지않는 경우 갱신을 하지 않음
                 # obj_state에 들어있지 않은 object의 경우 상태 갱신할 필요 없음 -> id switch가 일어난 경우는 restore_id에서 갱신
                 # 추후 다른 방식으로 변경 가능 
-                if owner_id not in person:
-                    continue
+                # if owner_id not in person:
+                #     continue
                 if obj_id not in obj:
                     continue
                 if obj_id not in self.obj_state:
                     continue
 
-                owner = person[owner_id] # track_id가 owner_id인 person의 track
+                owner = person[owner_id] if owner_id in person else None # track_id가 owner_id인 person의 track
                 belongings = obj[obj_id] # track_id가 obj_id인 object의 track
 
                 # onwer bbox와 belongings bbox의 distance 계산
-                distance = calc_distance(belongings[:4], owner[:4])
+                distance = calc_distance(belongings[:4], owner[:4] if owner is not None else None)
                 # ------------------------------------
                 # 6. state update 및 bbox update
                 curr_state = self.obj_state[obj_id]['state']
@@ -178,7 +178,7 @@ class abandonedObject:
 
             state = self.obj_state[obj_id].get('state')
 
-            # SEPARATED, SUSPECTED, LOST 상태일 때 매 프레임 bbox 갱신 (restore_id를 위해)
+            # SUSPECTED, LOST 상태일 때 매 프레임 bbox 갱신 (restore_id를 위해)
             if state in (objectState.SUSPECTED, objectState.LOST):
                 self.obj_state[obj_id]['bbox'] = obj_track[:4]
 
@@ -235,8 +235,9 @@ class abandonedObject:
             state = self.obj_state[track_id].get('state') if track_id in self.obj_state else None
             results.append(list(track) + [state.name if state else None])
 
-        #for obj_id, obj in self.obj_state:
-            #print('state: ', obj['state'])
+        ## 작동 확인용 출력
+        #for obj_id, obj in self.obj_state.items():
+          #  print(obj_id, ' : ',  obj)
 
         return results
     
@@ -609,6 +610,8 @@ def calc_distance(obj_bbox, person_bbox):
         4. cctv에서 가장 잘 보이는 머리부분의 중심좌표 이용 ***
         현재 1을 사용
     '''
+    if obj_bbox is None or person_bbox is None:
+        return np.inf
     obj_cx, obj_cy = calc_center(obj_bbox)
     p_cx, p_cy = calc_center(person_bbox)
 
