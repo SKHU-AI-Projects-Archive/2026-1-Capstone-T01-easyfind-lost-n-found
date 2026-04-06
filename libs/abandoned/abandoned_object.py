@@ -51,8 +51,12 @@ class abandonedObject:
 
         self.objs_owner = {} # owner를 기준으로 objects목록을 찾는다 
         self.obj_owner = {} # object를 기준으로 owner가 있는지 찾는다 
+
         # state가 바뀔때마다 다른 딕셔너리로 옮기는 작업보다 간단히 상태만 수정하면 되므로 하나의 딕셔너리로 관리 
         self.obj_state = {}
+
+        # 누군가 분실물을 가져갔을때 시점, object id를 저장하는 딕셔너리 
+        self.picked_up = {}
 
     def update(self, frame_id, tracks):
         '''
@@ -64,6 +68,7 @@ class abandonedObject:
             state : SEPARATED -> SUSPECTED -> LOST
 
             objs_state 저장형태 : object_id{
+                            'class' : 물체의 종류(detector에서 분류한 class)
                             'owner_id' : ?,
                             'state' : 0(with_owenr) 1(separated), 2(suspected), 3(lost)
                             'bbox' : ?, bbox는 seaprated된 순간 갱신한다 -> 가만히 있는 물체의 id스위치가 일어나도 id를 복구하기 위해
@@ -289,10 +294,12 @@ class abandonedObject:
         # object와 distance_threshold안쪽인 person을 후보로 묶어 pair_hist에 저장
         for obj in objects:
             obj_id = obj[4]
+            obj_cls = obj[5]
             obj_bbox = obj[0:4] 
             # 모든 object를 관리하기 위해  obj_state에 저장한다 
             if obj_id not in self.obj_state:
                 self.obj_state[obj_id] = {
+                    'class' : obj_cls,
                     'owner_id' : None,
                     'state' : objectState.UNASSIGNED,
                     'bbox' : None,
