@@ -2,6 +2,7 @@ import time
 import math
 import numpy as np
 from enum import Enum
+from scipy.optimize import linear_sum_assignment
 
 class objectState(Enum):
     UNASSIGNED = -1
@@ -385,7 +386,9 @@ class abandonedObject:
             obj => 현재 frame에서 추적된 대상
             obj : {id1 : track, id2 : track, ...}
 
-            SEPARATED, SUSPECTED, LOST상태에서의 object는 대부분 이동하지 않은 고정된 상태일 것이다 이를 이용하여 prev bbox(object_state['bbox'])와 curr_bbox의 iou를 비교하여 id를 복구한다 
+            SEPARATED, SUSPECTED, LOST상태에서의 object는 대부분 이동하지 않은 고정된 상태일 것이다 
+            이를 이용하여 prev bbox(object_state['bbox'])와 curr_bbox의 iou를 비교하여 id를 복구한다 
+            -> score = (w1 x iou) + (w2 x distance) / (w1 + w2)를 이용하여 복구하는 방향으로 수정 
             복구된 id와 기존 track을 담은 new track results를 return
             tracker의 output results 형태와 동일한 형태로 new track results를 만들어야한다 
             저장형태: [[float(x1 / img_w),
@@ -397,40 +400,68 @@ class abandonedObject:
         '''
         # 현재 id와 복구된 id를 매핑 || {curr_id : restore_id}
         restore_id_map = {}
-        # 이미 복구된 obj의 id는 재매칭 하지 않음 
-        matching_curr_ids = set()
+        # iou 와 distance 가중치
+        w_iou, w_dist = 0.7, 0.3
+        # math.exp의 k값
+        k = 2
+        
+        curr_ids = [
+            curr_id for curr_id in obj.keys()
+            if curr_id not in self.obj_state or
+              self.obj_state[curr_id]['state'] is not objectState.WITH_OWNER
+        ]
 
-        ''' 1. 복구할 대상인 id를 탐색, id 복구 '''
+        '''1. 복구 대상 수집'''
+        restore_ids = []
+        restore_bboxes = []
         for obj_id, obj_info in self.obj_state.items():
             state = obj_info['state']
 
-            if state == objectState.WITH_OWNER: # id 복구 대상은 SEPARATED, SUSPECTED, LOST (이 세가지 상태일 경우만 bbox갱신하므로)
+            if state == objectState.WITH_OWNER:
                 continue
-            if obj_id in obj: # 현재 프레임에서의 obj
+            
+            if obj_id in obj: # obj(현재 프레임에서 tracking중인 objects)안에 있으면 id switch가 일어난게 아니므로
                 continue
+            
             # WITH_OWNER가 아니면 bbox를 업데이트하니 상관없지만 혹시모르는 상황을 대비하여 작성
             prev_bbox = obj_info['bbox']
             if prev_bbox is None:
                 continue
 
-            max_iou = 0
-            max_curr_id = None
+            # 위의 if문들에 걸러지지 않았다면 id switch가 일어난 것이라고 판단한다 
+            restore_ids.append(obj_id)
+            restore_bboxes.append(prev_bbox)
 
-            for curr_id, track in obj.items():
-                if curr_id in matching_curr_ids:
-                    continue
+        '''2. cost matrix 생성'''
+        if restore_ids and curr_ids: # 복구대상이 없거나 첫프레임인경우... 에는 불필 계산할 필요 없음
+            cost_matrix = np.zeros((len(restore_ids), len(curr_ids)))
 
-                curr_bbox = track[:4]
-                iou = calc_iou(curr_bbox, prev_bbox)
-                if iou > max_iou:
-                    max_iou = iou
-                    max_curr_id = curr_id
-            # for문이 끝나는 시점에 max_curr_id가 정해져있음 이를 threshold와 비교하여 이상이면 id 복구대상으로 판단 
-            if max_iou >= self.restore_threshold and max_curr_id is not None:
-                restore_id_map[max_curr_id] = obj_id
-                matching_curr_ids.add(max_curr_id)
+            for i, prev_bbox in enumerate(restore_bboxes):
+                for j, curr_id in enumerate(curr_ids):
+                    track = obj[curr_id]
+                    curr_bbox = track[:4]
 
-        ''' 2. new_obj 생성 : restore된 id를 반영 '''
+                    iou = calc_iou(prev_bbox, curr_bbox)
+                    distance = calc_distance(prev_bbox, curr_bbox)
+                    dist_score = math.exp(k * -distance)
+
+                    score = ((w_iou * iou) + (w_dist * dist_score)) / (w_iou + w_dist)
+
+                    cost_matrix[i][j] = 1 - score
+        
+            '''3. hungarian matching'''
+            row_ind, col_ind = linear_sum_assignment(cost_matrix)
+
+            for row, col in zip(row_ind, col_ind):
+                score = 1 - cost_matrix[row][col]
+            
+                if score >= self.restore_threshold:
+                    curr_id = curr_ids[col]
+                    restore_id = restore_ids[row]
+
+                    restore_id_map[curr_id] = restore_id
+
+        ''' 4. new_obj 생성 : restore된 id를 반영 '''
         new_obj = {}
         for curr_id, track in obj.items():
             new_track = list(track)
