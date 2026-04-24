@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 function Dashboard() {
   const location = useLocation()
@@ -7,6 +7,10 @@ function Dashboard() {
   const focusCam = location.state?.focusCam || null
   const [modalCam, setModalCam] = useState(null)
   const [zoom, setZoom] = useState(1)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStart = useRef({ x: 0, y: 0 })
+  const positionRef = useRef({ x: 0, y: 0 })
 
   const cams = [
     { id: 'CAM-A2', name: 'CAM-A2 — 1F Entrance', status: 'Suspected', statusColor: '#f59e0b', msg: 'Backpack stationary (32s)' },
@@ -18,7 +22,7 @@ function Dashboard() {
   useEffect(() => {
     if (focusCam) {
       const cam = cams.find(c => c.id === focusCam)
-      if (cam) setModalCam(cam)
+      if (cam) handleOpenModal(cam)
       navigate('/dashboard', { replace: true, state: {} })
     }
   }, [])
@@ -26,6 +30,50 @@ function Dashboard() {
   const handleOpenModal = (cam) => {
     setModalCam(cam)
     setZoom(1)
+    setPosition({ x: 0, y: 0 })
+    positionRef.current = { x: 0, y: 0 }
+  }
+
+  const handleMouseDown = (e) => {
+    if (zoom <= 1) return
+    setIsDragging(true)
+    dragStart.current = {
+      x: e.clientX - positionRef.current.x,
+      y: e.clientY - positionRef.current.y,
+    }
+  }
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return
+    const newX = e.clientX - dragStart.current.x
+    const newY = e.clientY - dragStart.current.y
+    positionRef.current = { x: newX, y: newY }
+    setPosition({ x: newX, y: newY })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleZoomIn = () => {
+    setZoom(z => Math.min(3, parseFloat((z + 0.25).toFixed(2))))
+  }
+
+  const handleZoomOut = () => {
+    setZoom(z => {
+      const newZoom = Math.max(1, parseFloat((z - 0.25).toFixed(2)))
+      if (newZoom === 1) {
+        setPosition({ x: 0, y: 0 })
+        positionRef.current = { x: 0, y: 0 }
+      }
+      return newZoom
+    })
+  }
+
+  const handleZoomReset = () => {
+    setZoom(1)
+    setPosition({ x: 0, y: 0 })
+    positionRef.current = { x: 0, y: 0 }
   }
 
   return (
@@ -118,7 +166,6 @@ function Dashboard() {
           <div onClick={e => e.stopPropagation()} style={{
             background: '#111827', borderRadius: '12px', padding: '20px', width: '700px',
           }}>
-            {/* 모달 상단 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ color: 'white', fontWeight: '600', fontSize: '15px' }}>{modalCam.name}</span>
@@ -128,8 +175,29 @@ function Dashboard() {
             </div>
 
             {/* 영상 영역 */}
-            <div style={{ background: '#1f2937', borderRadius: '8px', height: '380px', overflow: 'hidden', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ transform: `scale(${zoom})`, transition: 'transform 0.2s', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              style={{
+                background: '#1f2937',
+                borderRadius: '8px',
+                height: '380px',
+                overflow: 'hidden',
+                marginBottom: '12px',
+                cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                userSelect: 'none',
+              }}>
+              <div style={{
+                transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px)`,
+                transition: isDragging ? 'none' : 'transform 0.2s',
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
                 <span style={{ color: '#4b5563', fontSize: '14px' }}>Connecting to stream...</span>
               </div>
             </div>
@@ -139,18 +207,9 @@ function Dashboard() {
               <div style={{ fontSize: '12px', color: modalCam.statusColor }}>{modalCam.status} — {modalCam.msg}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ color: '#9ca3af', fontSize: '12px' }}>Zoom: {Math.round(zoom * 100)}%</span>
-                <button onClick={() => setZoom(z => Math.max(1, parseFloat((z - 0.25).toFixed(2))))} style={{
-                  background: '#374151', color: 'white', border: 'none', borderRadius: '6px',
-                  width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>−</button>
-                <button onClick={() => setZoom(z => Math.min(3, parseFloat((z + 0.25).toFixed(2))))} style={{
-                  background: '#374151', color: 'white', border: 'none', borderRadius: '6px',
-                  width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>+</button>
-                <button onClick={() => setZoom(1)} style={{
-                  background: '#374151', color: '#9ca3af', border: 'none', borderRadius: '6px',
-                  padding: '0 10px', height: '32px', fontSize: '12px', cursor: 'pointer'
-                }}>Reset</button>
+                <button onClick={handleZoomOut} style={{ background: '#374151', color: 'white', border: 'none', borderRadius: '6px', width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer' }}>−</button>
+                <button onClick={handleZoomIn} style={{ background: '#374151', color: 'white', border: 'none', borderRadius: '6px', width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer' }}>+</button>
+                <button onClick={handleZoomReset} style={{ background: '#374151', color: '#9ca3af', border: 'none', borderRadius: '6px', padding: '0 10px', height: '32px', fontSize: '12px', cursor: 'pointer' }}>Reset</button>
               </div>
             </div>
           </div>
