@@ -61,7 +61,7 @@ def video_feed(pipe_name):
     return Response(generate_frames(pipe_name),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-class WebHandler__(BaseHandler):
+class WebHandler(BaseHandler):
     _server_started = False
     _server_lock = threading.Lock()
 
@@ -74,16 +74,16 @@ class WebHandler__(BaseHandler):
         self.draw_dets = config.get('draw_detections', True)
         self.draw_tracks = config.get('draw_tracks', True)
         
-        with WebHandler__._server_lock:
-            if not WebHandler__._server_started:
+        with WebHandler._server_lock:
+            if not WebHandler._server_started:
                 threading.Thread(target=self._run_server, daemon=True).start()
-                WebHandler__._server_started = True
+                WebHandler._server_started = True
 
     def _run_server(self):
         import logging
         log = logging.getLogger('werkzeug')
         log.setLevel(logging.ERROR)
-        print(f"[WebHandler__] Dashboard available at http://localhost:{self.port}/")
+        print(f"[WebHandler] Dashboard available at http://localhost:{self.port}/")
         app.run(host='0.0.0.0', port=self.port, threaded=True, use_reloader=False)
 
     def handle(self, data, shm_reader):

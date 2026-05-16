@@ -103,7 +103,7 @@ pipelines:
 output:
   mode: "sync"
   handlers:
-    - type: "ScreenHandler__"
+    - type: "ScreenHandler"
       enable: true
       view_width: 1280
       view_height: 960
@@ -111,7 +111,7 @@ output:
       draw_tracks: true
       show_info: true
 
-    - type: "WebHandler__"
+    - type: "WebHandler"
       enable: true
       port: 5000
       view_width: 1280  

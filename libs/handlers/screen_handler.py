@@ -3,7 +3,7 @@ import time
 import random
 from .base_handler import BaseHandler
 
-class ScreenHandler__(BaseHandler):
+class ScreenHandler(BaseHandler):
     def __init__(self, config):
         super().__init__(config)
         self.base_window_name = config.get('window_name', 'MOT System')
