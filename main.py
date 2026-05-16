@@ -2,69 +2,72 @@ import multiprocessing as mp
 import yaml
 import argparse
 
-from core.sources import SourceStreamer
-from core.pipelines import PipelineExecutor
-from core.outputs import OutputAggregator
+from core.sources.streamer import SourceStreamer
+from core.pipelines.executor import PipelineExecutor
+from core.outputs.aggregator import OutputAggregator
 
 if __name__ == "__main__":
     mp.set_start_method("spawn")
-
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", type=str, default="configs/dummy_config.yaml")
+    parser.add_argument("-c", "--config", type=str, default="configs/multi_cam.yaml")
     args = parser.parse_args()
 
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
 
-    SHM_NAME = config.get('setting', {}).get('shared_memory_name', "exp_dummy")
+    print(f">>> Multi-Source System (Separate Windows) Initialize.")
 
-    print(f">>> System Initialize. SHM: {SHM_NAME}")
-
-    pipe_queues = []
     result_queue = mp.Queue()
     processes = []
+    multi_pipe_queues = {}
 
+    # 1. Pipelines
     for pipe_conf in config.get('pipelines', []):
-        if not pipe_conf.get('enable', False):
+        if not pipe_conf.get('enable', True): 
             continue
-
+        
+        src_id = pipe_conf.get('source_id')
+        src_meta = next((s for s in config.get('sources', []) if s['id'] == src_id), None)
+        if not src_meta: 
+            print(f"Warning: Source ID '{src_id}' not found for pipeline '{pipe_conf.get('name')}'")
+            continue
+        
+        shm_name = src_meta['shared_memory_name']
         p_in_q = mp.Queue()
-        pipe_queues.append(p_in_q)
+        if src_id not in multi_pipe_queues: 
+            multi_pipe_queues[src_id] = []
+        multi_pipe_queues[src_id].append(p_in_q)
 
-        executor = PipelineExecutor(
-            config=pipe_conf,
-            input_queue=p_in_q,
-            result_queue=result_queue,
-            shm_name=SHM_NAME
-        )
+        executor = PipelineExecutor(pipe_conf, p_in_q, result_queue, shm_name)
         executor.start()
         processes.append(executor)
 
-    aggregator = OutputAggregator(
-        config=config.get('output', {}),
-        result_queue=result_queue,
-        shm_name=SHM_NAME
-    )
+    # 2. Aggregator (Separate Windows Mode)
+    aggregator = OutputAggregator(config.get('output', {}), result_queue)
     aggregator.start()
     processes.append(aggregator)
 
-    source_streamer = SourceStreamer(
-        config=config.get('source', {}),
-        shm_name=SHM_NAME,
-        queues=pipe_queues
-    )
-    source_streamer.start()
-    processes.append(source_streamer)
+    # 3. Streamers
+    for src_conf in config.get('sources', []):
+        src_id = src_conf['id']
+        shm_name = src_conf['shared_memory_name']
+        queues = multi_pipe_queues.get(src_id, [])
+        if not queues: 
+            print(f"Info: No active pipelines for source '{src_id}'. Skipping streamer.")
+            continue
+        
+        streamer = SourceStreamer(src_conf, shm_name, queues)
+        streamer.start()
+        processes.append(streamer)
 
-    print(">>> All processes started. Press 'q' in the visualizer window to quit.")
+    print(">>> All processes started. Each pipeline will have its own window.")
 
     try:
         aggregator.join()
     except KeyboardInterrupt:
-        print("\n>>> Keyboard Interrupt detected.")
+        print("\n>>> Keyboard Interrupt.")
     finally:
-        print(">>> Stopping processes...")
-        source_streamer.stop()
+        print(">>> Shutting down...")
         for p in processes:
             if hasattr(p, 'stop'):
                 p.stop()
