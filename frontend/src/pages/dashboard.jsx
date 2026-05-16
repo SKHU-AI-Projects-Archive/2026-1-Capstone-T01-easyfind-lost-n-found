@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
+// insert useRef to move zoom in the video 
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 function Dashboard() {
   const location = useLocation()
@@ -7,31 +8,92 @@ function Dashboard() {
   const focusCam = location.state?.focusCam || null
   const [modalCam, setModalCam] = useState(null)
   const [zoom, setZoom] = useState(1)
+  // zoom in, zoom out
+  
+  // 실제 백엔드 YAML 설정(Office_Cam, Hallway_Cam)에 맞춘 카메라 리스트
+  //camera list from yaml file 
+  const [cams, setCams] = useState([])
+
+  // 줌 및 드래그 상태 관리
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const dragStart = useRef({ x: 0, y: 0 })
   const positionRef = useRef({ x: 0, y: 0 })
-
-  const cams = [
-    { id: 'CAM-A2', name: 'CAM-A2 — 1F Entrance', status: 'Suspected', statusColor: '#f59e0b', msg: 'Backpack stationary (32s)' },
-    { id: 'CAM-B1', name: 'CAM-B1 — 2F Corridor', status: 'Normal', statusColor: '#22c55e', msg: 'No alerts' },
-    { id: 'CAM-D3', name: 'CAM-D3 — B1 Parking', status: 'Confirmed', statusColor: '#ef4444', msg: 'Luggage (2min+)' },
-    { id: 'CAM-C4', name: 'CAM-C4 — 3F Lounge', status: 'Normal', statusColor: '#22c55e', msg: 'No alerts' },
-  ]
+  const videoContainerRef = useRef(null)
 
   useEffect(() => {
-    if (focusCam) {
-      const cam = cams.find(c => c.id === focusCam)
-      if (cam) handleOpenModal(cam)
-      navigate('/dashboard', { replace: true, state: {} })
+    const fetchCameras = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/cameras')
+        const data = await response.json()
+        const dynamicCams = data.cameras.map(name => ({
+          id: name,
+          name: name,
+          status: 'Normal',
+          statusColor: '#22c55e',
+          msg: 'Live stream active'
+        }))
+        setCams(dynamicCams)
+      } catch (error) {
+        console.error("Failed to fetch cameras:", error)
+      }
     }
+
+    fetchCameras()
+    const interval = setInterval(fetchCameras, 5000) 
+    return () => clearInterval(interval)
   }, [])
 
-  const handleOpenModal = (cam) => {
-    setModalCam(cam)
+  useEffect(() => {
+    if (focusCam && cams.length > 0) {
+      const cam = cams.find(c => c.id === focusCam)
+      if (cam) handleOpenModal(cam)
+      navigate('/', { replace: true, state: {} })
+    }
+  }, [focusCam, cams])
+
+  const handleZoomIn = useCallback(() => {
+    setZoom(z => Math.min(3, parseFloat((z + 0.1).toFixed(2))))
+  }, [])
+
+  const handleZoomOut = useCallback(() => {
+    setZoom(z => {
+      const newZoom = Math.max(1, parseFloat((z - 0.1).toFixed(2)))
+      if (newZoom === 1) {
+        setPosition({ x: 0, y: 0 })
+        positionRef.current = { x: 0, y: 0 }
+      }
+      return newZoom
+    })
+  }, [])
+
+  const handleZoomReset = useCallback(() => {
     setZoom(1)
     setPosition({ x: 0, y: 0 })
     positionRef.current = { x: 0, y: 0 }
+  }, [])
+
+  // 마우스 휠 이벤트 처리 (passive: false를 위해 useEffect에서 직접 등록)
+  useEffect(() => {
+    const el = videoContainerRef.current
+    if (!el) return
+
+    const onWheel = (e) => {
+      e.preventDefault() // 페이지 스크롤 방지
+      if (e.deltaY < 0) {
+        handleZoomIn()
+      } else {
+        handleZoomOut()
+      }
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [modalCam, handleZoomIn, handleZoomOut])
+
+  const handleOpenModal = (cam) => {
+    setModalCam(cam)
+    handleZoomReset()
   }
 
   const handleMouseDown = (e) => {
@@ -53,27 +115,6 @@ function Dashboard() {
 
   const handleMouseUp = () => {
     setIsDragging(false)
-  }
-
-  const handleZoomIn = () => {
-    setZoom(z => Math.min(3, parseFloat((z + 0.25).toFixed(2))))
-  }
-
-  const handleZoomOut = () => {
-    setZoom(z => {
-      const newZoom = Math.max(1, parseFloat((z - 0.25).toFixed(2)))
-      if (newZoom === 1) {
-        setPosition({ x: 0, y: 0 })
-        positionRef.current = { x: 0, y: 0 }
-      }
-      return newZoom
-    })
-  }
-
-  const handleZoomReset = () => {
-    setZoom(1)
-    setPosition({ x: 0, y: 0 })
-    positionRef.current = { x: 0, y: 0 }
   }
 
   return (
@@ -111,15 +152,34 @@ function Dashboard() {
               <span style={{ color: '#9ca3af', fontSize: '12px' }}>{cam.name}</span>
               <span style={{ background: '#22c55e', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '8px' }}>● LIVE</span>
             </div>
-            <div style={{ flex: 1, background: '#1f2937', borderRadius: '6px', minHeight: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ color: '#4b5563', fontSize: '12px' }}>Connecting to stream...</span>
+            {/* 동적 스트리밍 경로 적용 */}
+            <div style={{ 
+              width: '100%', 
+              aspectRatio: '4 / 3', 
+              background: '#1f2937', 
+              borderRadius: '6px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              overflow: 'hidden' 
+            }}>
+              <img 
+                src={`http://localhost:5000/video_feed/${cam.id}`} 
+                alt={cam.name} 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+              />
             </div>
             <div style={{ fontSize: '11px', color: cam.statusColor }}>{cam.status} — {cam.msg}</div>
           </div>
         ))}
+        {cams.length === 0 && (
+          <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+            No active camera streams found.
+          </div>
+        )}
       </div>
 
-      {/* Right Panel */}
+      {/* Right Panel (Alerts & Timeline) */}
       <div style={{ position: 'fixed', right: 0, top: '48px', width: '260px', background: 'white', borderLeft: '1px solid #e5e7eb', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', height: 'calc(100vh - 48px)', overflow: 'auto' }}>
         <div>
           <div style={{ fontSize: '11px', fontWeight: '600', color: '#6b7280', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Real-time Alerts</div>
@@ -157,15 +217,16 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* 카메라 모달 */}
+      {/* 카메라 모달 (확대 보기) */}
       {modalCam && (
         <div onClick={() => setModalCam(null)} style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
           background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#111827', borderRadius: '12px', padding: '20px', width: '700px',
+            background: '#111827', borderRadius: '12px', padding: '20px', width: '800px',
           }}>
+            {/* 모달 상단 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ color: 'white', fontWeight: '600', fontSize: '15px' }}>{modalCam.name}</span>
@@ -176,6 +237,7 @@ function Dashboard() {
 
             {/* 영상 영역 */}
             <div
+              ref={videoContainerRef}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
@@ -186,6 +248,9 @@ function Dashboard() {
                 height: '380px',
                 overflow: 'hidden',
                 marginBottom: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
                 userSelect: 'none',
               }}>
@@ -196,9 +261,9 @@ function Dashboard() {
                 height: '100%',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justifyContent: 'center'
               }}>
-                <span style={{ color: '#4b5563', fontSize: '14px' }}>Connecting to stream...</span>
+                <img src={`http://localhost:5000/video_feed/${modalCam.id}`} alt={modalCam.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
             </div>
 
@@ -207,9 +272,18 @@ function Dashboard() {
               <div style={{ fontSize: '12px', color: modalCam.statusColor }}>{modalCam.status} — {modalCam.msg}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ color: '#9ca3af', fontSize: '12px' }}>Zoom: {Math.round(zoom * 100)}%</span>
-                <button onClick={handleZoomOut} style={{ background: '#374151', color: 'white', border: 'none', borderRadius: '6px', width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer' }}>−</button>
-                <button onClick={handleZoomIn} style={{ background: '#374151', color: 'white', border: 'none', borderRadius: '6px', width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer' }}>+</button>
-                <button onClick={handleZoomReset} style={{ background: '#374151', color: '#9ca3af', border: 'none', borderRadius: '6px', padding: '0 10px', height: '32px', fontSize: '12px', cursor: 'pointer' }}>Reset</button>
+                <button onClick={handleZoomOut} style={{
+                  background: '#374151', color: 'white', border: 'none', borderRadius: '6px',
+                  width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>−</button>
+                <button onClick={handleZoomIn} style={{
+                  background: '#374151', color: 'white', border: 'none', borderRadius: '6px',
+                  width: '32px', height: '32px', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>+</button>
+                <button onClick={handleZoomReset} style={{
+                  background: '#374151', color: '#9ca3af', border: 'none', borderRadius: '6px',
+                  padding: '0 10px', height: '32px', fontSize: '12px', cursor: 'pointer'
+                }}>Reset</button>
               </div>
             </div>
           </div>

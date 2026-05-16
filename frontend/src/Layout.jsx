@@ -15,7 +15,7 @@ function Layout({ children }) {
   const formatDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
   const navItems = [
-    { label: 'Monitoring', path: '/dashboard', icon: '🖥️' },
+    { label: 'Monitoring', path: '/', icon: '🖥️' },
     { label: 'Detection History', path: '/detection-history', icon: '🕐' },
     { label: 'Alerts', path: '/alerts', icon: '🔔' },
     { label: 'Settings', path: '/settings', icon: '⚙️' },
@@ -42,23 +42,23 @@ function Layout({ children }) {
           <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Suspected 2</span>
           <span style={{ background: '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Confirmed 1</span>
           <div style={{ cursor: 'pointer', position: 'relative' }} onClick={() => navigate('/alerts')}>
-            <span style={{ fontSize: '18px' }}>🔔</span>
-            <span style={{
-              position: 'absolute',
-              top: '-6px',
-              right: '-8px',
-              background: '#ef4444',
-              color: 'white',
-              fontSize: '10px',
-              fontWeight: '600',
-              width: '16px',
-              height: '16px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>3</span>
-          </div>
+          <span style={{ fontSize: '18px' }}>🔔</span>
+          <span style={{
+            position: 'absolute',
+            top: '-6px',
+            right: '-8px',
+            background: '#ef4444',
+            color: 'white',
+            fontSize: '10px',
+            fontWeight: '600',
+            width: '16px',
+            height: '16px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>3</span>
+        </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '13px', fontWeight: '600' }}>{formatTime(time)}</div>
             <div style={{ fontSize: '10px', color: '#9ca3af' }}>{formatDate(time)}</div>

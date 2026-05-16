@@ -10,7 +10,6 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout><Dashboard /></Layout>} />
-        <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
         <Route path="/detection-history" element={<Layout><DetectionHistory /></Layout>} />
         <Route path="/alerts" element={<Layout><Alerts /></Layout>} />
         <Route path="/settings" element={<Layout><Settings /></Layout>} />

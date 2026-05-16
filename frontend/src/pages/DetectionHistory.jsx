@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 function DetectionHistory() {
@@ -12,17 +12,47 @@ function DetectionHistory() {
   const [selectedItem, setSelectedItem] = useState(null)
   const [videoModal, setVideoModal] = useState(null)
   const [videoZoom, setVideoZoom] = useState(1)
+  
+  const [allData, setAllData] = useState([])
 
-  const allData = [
-    { id: 1, type: 'Backpack', cam: 'CAM-A2', location: 'Terminal A Gate 12', date: '2026-03-27', time: '11:22', duration: '45 min', status: 'Confirmed' },
-    { id: 2, type: 'Luggage', cam: 'CAM-B1', location: 'Food Court', date: '2026-03-27', time: '09:22', duration: '28 min', status: 'Suspected' },
-    { id: 3, type: 'Handbag', cam: 'CAM-C4', location: 'East Entrance', date: '2026-03-26', time: '08:22', duration: '15 min', status: 'Taken' },
-    { id: 4, type: 'Coat', cam: 'CAM-D3', location: 'West Wing', date: '2026-03-26', time: '07:22', duration: '62 min', status: 'Confirmed' },
-    { id: 5, type: 'Backpack', cam: 'CAM-A2', location: 'Terminal A Gate 12', date: '2026-03-25', time: '05:22', duration: '33 min', status: 'Suspected' },
-    { id: 6, type: 'Luggage', cam: 'CAM-B1', location: 'Food Court', date: '2026-03-25', time: '03:22', duration: '89 min', status: 'Taken' },
-    { id: 7, type: 'Handbag', cam: 'CAM-C4', location: 'East Entrance', date: '2026-03-24', time: '14:10', duration: '20 min', status: 'Confirmed' },
-    { id: 8, type: 'Coat', cam: 'CAM-D3', location: 'West Wing', date: '2026-03-23', time: '16:45', duration: '55 min', status: 'Suspected' },
-  ]
+  // 백엔드 API에서 실시간 데이터 가져오기
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/detections')
+        const data = await response.json()
+        
+        // 백엔드 데이터 형식을 프런트엔드 테이블 형식으로 변환
+        const formattedData = data.map(item => ({
+          id: item.id,
+          track_id: item.track_id,
+          type: item.type,
+          cam: item.pipe_name,
+          location: 'Detected Area', // 추후 백엔드에서 위치 정보를 줄 수도 있음
+          date: item.first_seen.split(' ')[0],
+          time: item.first_seen.split(' ')[1],
+          duration: calculateDuration(item.first_seen, item.last_seen),
+          status: item.state === 'SUSPECTED' ? 'Suspected' : item.state === 'LOST' ? 'Confirmed' : item.state,
+          raw_state: item.state
+        }))
+        
+        setAllData(formattedData.reverse()) // 최신순 정렬
+      } catch (error) {
+        console.error("Failed to fetch detections:", error)
+      }
+    }
+
+    fetchData()
+    const interval = setInterval(fetchData, 3000) // 3초마다 갱신
+    return () => clearInterval(interval)
+  }, [])
+
+  const calculateDuration = (start, end) => {
+    const s = new Date(start)
+    const e = new Date(end)
+    const diff = Math.floor((e - s) / 1000 / 60) // 분 단위
+    return `${diff} min`
+  }
 
   const filtered = allData.filter(row => {
     if (filterDate && row.date !== filterDate) return false
@@ -34,6 +64,8 @@ function DetectionHistory() {
     return true
   })
 
+  // ... (rest of the component logic remains same)
+
   const resetFilters = () => {
     setFilterDate('')
     setFilterTimeStart('')
@@ -44,7 +76,7 @@ function DetectionHistory() {
   }
 
   const getStatusStyle = (status) => {
-    if (status === 'Confirmed') return { background: '#fef2f2', color: '#ef4444' }
+    if (status === 'Confirmed' || status === 'LOST') return { background: '#fef2f2', color: '#ef4444' }
     if (status === 'Taken') return { background: '#eff6ff', color: '#3b82f6' }
     return { background: '#fffbeb', color: '#f59e0b' }
   }
@@ -114,8 +146,8 @@ function DetectionHistory() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
           {[
-            { label: 'Camera', value: filterCam, setter: setFilterCam, options: ['All Cameras', 'CAM-A2', 'CAM-B1', 'CAM-C4', 'CAM-D3'] },
-            { label: 'Object Type', value: filterType, setter: setFilterType, options: ['All Types', 'Backpack', 'Luggage', 'Handbag', 'Coat'] },
+            { label: 'Camera', value: filterCam, setter: setFilterCam, options: ['All Cameras', ...new Set(allData.map(d => d.cam))] },
+            { label: 'Object Type', value: filterType, setter: setFilterType, options: ['All Types', ...new Set(allData.map(d => d.type))] },
             { label: 'Status', value: filterStatus, setter: setFilterStatus, options: ['All Status', 'Suspected', 'Confirmed', 'Taken'] },
           ].map((filter, i) => (
             <div key={i}>
@@ -139,7 +171,7 @@ function DetectionHistory() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9fafb' }}>
-                {['Thumbnail', 'Object Type', 'Camera', 'Location', 'Date', 'Time', 'Duration', 'Status'].map((col, i) => (
+                {['Thumbnail', 'Object Type', 'Camera', 'ID', 'Date', 'Time', 'Duration', 'Status'].map((col, i) => (
                   <th key={i} style={{ padding: '10px 16px', fontSize: '11px', fontWeight: '600', color: '#6b7280', textAlign: 'left', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{col}</th>
                 ))}
               </tr>
@@ -157,7 +189,7 @@ function DetectionHistory() {
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '500' }}>{row.type}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{row.cam}</td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{row.location}</td>
+                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{row.track_id}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{row.date}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{row.time}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{row.duration}</td>
@@ -186,7 +218,7 @@ function DetectionHistory() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: '48px', height: '48px', background: '#1a1f2e', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#6b7280' }}>IMG</div>
                 <div>
-                  <div style={{ fontWeight: '600', fontSize: '16px' }}>{selectedItem.type}</div>
+                  <div style={{ fontWeight: '600', fontSize: '16px' }}>{selectedItem.type} (ID:{selectedItem.track_id})</div>
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '8px', fontWeight: '600', ...getStatusStyle(selectedItem.status) }}>{selectedItem.status}</span>
                 </div>
               </div>
@@ -256,7 +288,7 @@ function DetectionHistory() {
             <div style={{ display: 'flex', gap: '10px' }}>
               <button onClick={() => {
                 setSelectedItem(null)
-                navigate('/dashboard', { state: { focusCam: selectedItem.cam } })
+                navigate('/', { state: { focusCam: selectedItem.cam } })
               }} style={{
                 flex: 1, padding: '10px', background: '#1a1f2e', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
               }}>📹 Go to Camera</button>

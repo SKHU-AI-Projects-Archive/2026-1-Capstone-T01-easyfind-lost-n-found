@@ -1,14 +1,46 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 function Alerts() {
   const [filter, setFilter] = useState('All')
-  const [alerts, setAlerts] = useState([
-    { id: 1, type: 'Backpack', cam: 'CAM-A2', location: 'Terminal A Gate 12', time: '15:42', status: 'Suspected' },
-    { id: 2, type: 'Luggage', cam: 'CAM-B1', location: 'Food Court', time: '15:40', status: 'Confirmed' },
-    { id: 3, type: 'Handbag', cam: 'CAM-C4', location: 'East Entrance', time: '15:35', status: 'Suspected' },
-    { id: 4, type: 'Coat', cam: 'CAM-D3', location: 'West Wing', time: '15:30', status: 'Confirmed' },
-    { id: 5, type: 'Backpack', cam: 'CAM-A2', location: 'Terminal A Gate 12', time: '15:20', status: 'Suspected' },
-  ])
+  const [alerts, setAlerts] = useState([])
+
+  // 백엔드 API에서 실시간 알림 데이터 가져오기
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/alerts')
+        const data = await response.json()
+        
+        // 백엔드 상태명을 프런트엔드 표시용 텍스트로 변환
+        const formattedAlerts = data.map(item => ({
+          id: item.id,
+          type: item.type,
+          cam: item.pipe_name,
+          location: 'Detected Area',
+          time: item.last_seen.split(' ')[1],
+          status: mapStateToStatus(item.state),
+          raw_state: item.state
+        }))
+        
+        setAlerts(formattedAlerts.reverse()) // 최신순
+      } catch (error) {
+        console.error("Failed to fetch alerts:", error)
+      }
+    }
+
+    fetchAlerts()
+    const interval = setInterval(fetchAlerts, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const mapStateToStatus = (state) => {
+    switch(state) {
+      case 'SEPARATED': return 'Separated';
+      case 'SUSPECTED': return 'Suspected';
+      case 'LOST': return 'Confirmed';
+      default: return state;
+    }
+  }
 
   const filtered = filter === 'All' ? alerts : alerts.filter(a => a.status === filter)
 
@@ -23,7 +55,7 @@ function Alerts() {
       {/* Filter Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {['All', 'Suspected', 'Confirmed'].map((f) => (
+          {['All', 'Separated', 'Suspected', 'Confirmed'].map((f) => (
             <button key={f} onClick={() => setFilter(f)} style={{
               padding: '6px 16px',
               borderRadius: '20px',
@@ -58,7 +90,7 @@ function Alerts() {
             <div key={alert.id} style={{
               background: 'white',
               border: '1px solid #e5e7eb',
-              borderLeft: `4px solid ${alert.status === 'Confirmed' ? '#ef4444' : '#f59e0b'}`,
+              borderLeft: `4px solid ${alert.raw_state === 'LOST' ? '#ef4444' : alert.raw_state === 'SUSPECTED' ? '#f59e0b' : '#3b82f6'}`,
               borderRadius: '0 10px 10px 0',
               padding: '16px 20px',
               display: 'flex',
@@ -69,7 +101,7 @@ function Alerts() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
                 <div style={{ width: '44px', height: '44px', background: '#1a1f2e', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#6b7280', flexShrink: 0 }}>IMG</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>{alert.type}</div>
+                  <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>{alert.type} (ID:{alert.id})</div>
                   <div style={{ fontSize: '12px', color: '#6b7280' }}>{alert.cam} · {alert.location} · {alert.time}</div>
                 </div>
               </div>
@@ -79,8 +111,8 @@ function Alerts() {
                   padding: '3px 10px',
                   borderRadius: '10px',
                   fontWeight: '600',
-                  background: alert.status === 'Confirmed' ? '#fef2f2' : '#fffbeb',
-                  color: alert.status === 'Confirmed' ? '#ef4444' : '#f59e0b',
+                  background: alert.raw_state === 'LOST' ? '#fef2f2' : alert.raw_state === 'SUSPECTED' ? '#fffbeb' : '#eff6ff',
+                  color: alert.raw_state === 'LOST' ? '#ef4444' : alert.raw_state === 'SUSPECTED' ? '#f59e0b' : '#3b82f6',
                 }}>{alert.status}</span>
                 <button onClick={() => dismiss(alert.id)} style={{
                   padding: '6px 12px',
