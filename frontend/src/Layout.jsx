@@ -5,21 +5,47 @@ function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [time, setTime] = useState(new Date())
+  const [status, setStatus] = useState({
+    summary: { suspected: 0, confirmed: 0, taken: 0 },
+    pipelines: {}
+  })
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000)
-    return () => clearInterval(timer)
+    
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/status')
+        if (res.ok) {
+          const data = await res.json()
+          setStatus(data)
+        }
+      } catch (err) {
+        console.error('Failed to fetch status:', err)
+      }
+    }
+    
+    fetchStatus()
+    const statusTimer = setInterval(fetchStatus, 2000)
+
+    return () => {
+      clearInterval(timer)
+      clearInterval(statusTimer)
+    }
   }, [])
 
   const formatTime = (date) => date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const formatDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
   const navItems = [
-    { label: 'Monitoring', path: '/', icon: '🖥️' },
+    { label: 'Monitoring', path: '/dashboard', icon: '🖥️' },
     { label: 'Detection History', path: '/detection-history', icon: '🕐' },
     { label: 'Alerts', path: '/alerts', icon: '🔔' },
+    { label: 'Precise Detection', path: '/precise-detection', icon: '🔍' },
     { label: 'Settings', path: '/settings', icon: '⚙️' },
   ]
+
+  const connectedCams = Object.keys(status.pipelines).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f0f2f5' }}>
@@ -39,8 +65,8 @@ function Layout({ children }) {
           <span style={{ background: '#22c55e', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px' }}>● LIVE</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Suspected 2</span>
-          <span style={{ background: '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Confirmed 1</span>
+          <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Suspected {status.summary.suspected}</span>
+          <span style={{ background: '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Confirmed {status.summary.confirmed}</span>
           <div style={{ cursor: 'pointer', position: 'relative' }} onClick={() => navigate('/alerts')}>
           <span style={{ fontSize: '18px' }}>🔔</span>
           <span style={{
@@ -57,7 +83,7 @@ function Layout({ children }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-          }}>3</span>
+          }}>{status.summary.suspected + status.summary.confirmed}</span>
         </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '13px', fontWeight: '600' }}>{formatTime(time)}</div>
@@ -88,7 +114,7 @@ function Layout({ children }) {
             </div>
           ))}
           <div style={{ marginTop: 'auto', padding: '12px 20px', fontSize: '11px', color: '#9ca3af' }}>
-            <div>Camera 4 / 4 connected</div>
+            <div>Camera {connectedCams} connected</div>
             <div style={{ marginTop: '4px' }}>YOLOWorld + ByteTrack</div>
           </div>
         </div>
