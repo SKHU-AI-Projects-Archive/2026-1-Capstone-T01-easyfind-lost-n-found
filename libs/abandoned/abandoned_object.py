@@ -39,6 +39,9 @@ class abandonedObject:
         self.owner_frame_threshold = config.get('owner_frame_threshold', 30)
         self.restore_threshold = config.get('restore_threshold', 0.7)
 
+        self.move_threshold_sec = config.get('move_threshold_sec', 1)
+        self.move_threshold = self.move_threshold_sec * self.fps
+
         # 주종관계가 정해지기 전 사용하는 딕셔너리
         # 주종관계가 정해지면 삭제, 화면에서 object가 사라지면 삭제
         # 이 딕셔너리를 참고하여 obj_state의 주인정보를 저장한다 
@@ -170,7 +173,19 @@ class abandonedObject:
                 state = self.obj_state[obj_id]['state']
                 if state != objectState.WITH_OWNER:
                     self.obj_state[obj_id]['bbox'] = belongings[:4]
-                else: 
+
+                    if state in (objectState.SUSPECTED, objectState.LOST):
+                        curr_bbox = belongings[:4]
+                        prev_bbox = self.prev_bbox.get(obj_id)
+                        if prev_bbox is not None:
+                            if not self._is_static(curr_bbox, prev_bbox):
+                                if self.obj_state[obj_id]['move_start'] is None:
+                                    self.obj_state[obj_id]['move_start'] = frame_id
+                                elif frame_id - self.obj_state[obj_id]['move_start'] >= self.move_threshold:
+                                    self._record_pickup(obj_id, frame_id, curr_bbox)
+                            else:
+                                self.obj_state[obj_id]['move_start'] = None
+                else:
                     self.obj_state[obj_id]['bbox'] = None
 
         ''' owenr가 정해지지 않은 object(state : unassinged)에 대한 분실물 여부 판단, 상태 갱신 '''
@@ -186,7 +201,19 @@ class abandonedObject:
 
             # SUSPECTED, LOST 상태일 때 매 프레임 bbox 갱신 (restore_id를 위해)
             if state in (objectState.SUSPECTED, objectState.LOST):
-                self.obj_state[obj_id]['bbox'] = obj_track[:4]
+                curr_bbox = obj_track[:4]
+                prev_bbox = self.prev_bbox.get(obj_id)
+
+                if prev_bbox is not None:
+                    if not self._is_static(curr_bbox, prev_bbox):
+                        if self.obj_state[obj_id]['move_start'] is None:
+                            self.obj_state[obj_id]['move_start'] = frame_id
+                        elif frame_id - self.obj_state[obj_id]['move_start'] >= self.move_threshold:
+                            self._record_pickup(obj_id, frame_id)
+                    else:
+                        self.obj_state[obj_id]['move_start'] = None
+
+                self.obj_state[obj_id]['bbox'] = curr_bbox
 
             # SUSPECTED → LOST
             if state == objectState.SUSPECTED:
@@ -224,6 +251,8 @@ class abandonedObject:
         for obj_id in obj:
             if obj_id in self.obj_state:
                 self.obj_state[obj_id]['last_seen'] = frame_id
+                # last seen 시간 정보 기록 
+                self.obj_state[obj_id]['last_seen(time)'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
 
         # 8. prev_bbox, prev_last_seen 업데이트
         for track in new_track_results:
@@ -308,7 +337,8 @@ class abandonedObject:
                     'separated_start' : None,
                     'suspected_start' : None,
                     'lost_start' : None,
-                    'static_start' : None
+                    'static_start' : None,
+                    'move_start'   : None
                 }
 
             # prev_bbox가 없으면 None으로 하여 초기화 
@@ -517,6 +547,13 @@ class abandonedObject:
             obj_info = self.obj_state.get(obj_id, {})
             owner_id = obj_info.get('owner_id', None)
 
+            ''' 정리 대상인 물건들 중 SUSPECTED, LOST상태였던 물건이 있다면 누군가 가져갔을 경우였을 수 있으므로 로그에 기록'''
+            # SUSPECTED / LOST 상태였던 Object의 트래킹이 끊겨 clean 대상이 된다 -> 누군가 가져갔을 가능성이 있으므로 로그에 기록
+            # 아니면 어쩔 수 없고 누가 가져갔으면 ㄴㅇㅅ
+            state = obj_info.get('state')
+            if state in [objectState.SUSPECTED, objectState.LOST]:
+                self._record_pickup(obj_id)
+
             self.obj_state.pop(obj_id, None)
             self.obj_owner.pop(obj_id, None)
             self.pair_hist.pop(obj_id, None)
@@ -622,6 +659,18 @@ class abandonedObject:
             return True
         
         return False
+
+
+    def _record_pickup(self, obj_id, frame_id=None, bbox=None):
+        obj_info = self.obj_state.get(obj_id, {})
+                
+        self.picked_up[obj_id] = {
+            'class'     : obj_info.get('class'),
+            'state'     : obj_info.get('state'),
+            'bbox'      : obj_info.get('bbox') if bbox is None else bbox,
+            'last_seen' : obj_info.get('last_seen') if frame_id is None else frame_id,
+            'time'      : obj_info.get('last_seen(time)')
+            }
 
 
 '''

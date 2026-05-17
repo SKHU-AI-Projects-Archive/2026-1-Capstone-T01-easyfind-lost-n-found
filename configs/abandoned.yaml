@@ -48,6 +48,7 @@ pipelines:
       score_threshold : 0.7
       restore_threshold : 0.7
       owner_frame_threshold : 30
+      move_threshold_sec : 1
       iou_threshold : 0.75
       fps: 30
 
