@@ -133,7 +133,7 @@ class ScreenHandler(BaseHandler):
         }
 
         row_h   = 20
-        col_w   = [50, 90, 100]
+        col_w   = [40, 80, 90, 55]
         padding = 6
         table_w = sum(col_w) + padding * 2
         table_h = row_h * (self.table_max_rows + 1) + padding * 2
@@ -141,7 +141,8 @@ class ScreenHandler(BaseHandler):
         canvas = np.zeros((table_h, table_w, 3), dtype=np.uint8)
         canvas[:] = (30, 30, 30)
 
-        obj_tracks = [t for t in tracks if len(t) >= 7 and t[5] != 'person']
+        person_tracks = [t for t in tracks if t[5] == 'person']
+        obj_tracks    = [t for t in tracks if len(t) >= 7 and t[5] != 'person']
         total = len(obj_tracks)
 
         if total > 0:
@@ -150,7 +151,7 @@ class ScreenHandler(BaseHandler):
         else:
             visible = []
 
-        headers = ['ID', 'Class', 'State']
+        headers = ['ID', 'Class', 'State', 'Dist']
         for i, (header, _) in enumerate(zip(headers, col_w)):
             tx = padding + sum(col_w[:i])
             ty = padding + row_h - 4
@@ -168,8 +169,20 @@ class ScreenHandler(BaseHandler):
             cls   = str(trk[5])
             state = trk[6] if trk[6] else 'UNASSIGNED'
             color = STATE_COLORS.get(state, (200, 200, 200))
+
+            obj_cx = (trk[0] + trk[2]) / 2
+            obj_cy = (trk[1] + trk[3]) / 2
+            if person_tracks:
+                min_dist = min(
+                    ((p[0] + p[2]) / 2 - obj_cx) ** 2 + ((p[1] + p[3]) / 2 - obj_cy) ** 2
+                    for p in person_tracks
+                ) ** 0.5
+                dist_str = f"{min_dist:.2f}"
+            else:
+                dist_str = '-'
+
             ty = padding + row_h * (r + 2) - 4
-            for i, (text, _) in enumerate(zip([str(tid), cls, state], col_w)):
+            for i, (text, _) in enumerate(zip([str(tid), cls, state, dist_str], col_w)):
                 tx = padding + sum(col_w[:i])
                 cv2.putText(canvas, text, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
 
