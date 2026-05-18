@@ -13,6 +13,9 @@ class ScreenHandler(BaseHandler):
         self.show_info = config.get('show_info', True)
         self.draw_dets = config.get('draw_detections', True)
         self.draw_tracks = config.get('draw_tracks', True)
+        self.table_max_rows = config.get('table_max_rows', 8)
+        self.table_scroll = 0
+        self._window_ready = False
 
     def handle(self, data, shm_reader):
         original_img = shm_reader.get(data['shm_meta'])
@@ -60,10 +63,16 @@ class ScreenHandler(BaseHandler):
                 tid = int(trk[4])
                 cid = int(trk[5])
                 color = self.class_color(cid)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(frame, f"ID:{tid}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
+                cv2.putText(frame, f"ID:{tid}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 1)
+
+            self._draw_obj_state(frame, tracks)
+            self._draw_state_table(frame, tracks)
 
         cv2.imshow(self.window_name, frame)
+        if not self._window_ready:
+            cv2.setMouseCallback(self.window_name, self._on_mouse)
+            self._window_ready = True
 
     def _to_pixel(self, bbox_norm, clip=True):
         x1 = int(bbox_norm[0] * self.view_w)
@@ -80,6 +89,86 @@ class ScreenHandler(BaseHandler):
 
     def release(self):
         cv2.destroyWindow(self.window_name)
+
+    def _draw_obj_state(self, frame, tracks):
+        STATE_COLORS = {
+            'SEPARATED' : (0, 255, 255),   # yellow
+            'STATIC'    : (0, 255, 255),   # yellow
+            'SUSPECTED' : (0, 165, 255),   # orange
+            'LOST'      : (0, 0, 255),     # red
+        }
+        for trk in tracks:
+            if len(trk) < 7:
+                continue
+            state = trk[6]
+            if state not in STATE_COLORS:
+                continue
+            x1, y1, x2, y2 = self._to_pixel(trk[:4])
+            tid = int(trk[4])
+            color = STATE_COLORS[state]
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            cv2.putText(frame, f"ID:{tid} [{state}]", (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+    def _on_mouse(self, event, *args, **_):
+        flags = args[2] if len(args) > 2 else 0
+        if event == cv2.EVENT_MOUSEWHEEL:
+            if flags > 0:
+                self.table_scroll = max(0, self.table_scroll - 1)
+            else:
+                self.table_scroll += 1
+
+    def _draw_state_table(self, frame, tracks):
+        STATE_COLORS = {
+            'WITH_OWNER' : (0, 255, 0),
+            'STATIC'     : (0, 255, 255),
+            'SEPARATED'  : (0, 255, 255),
+            'SUSPECTED'  : (0, 165, 255),
+            'LOST'       : (0, 0, 255),
+            'UNASSIGNED' : (180, 180, 180),
+        }
+        obj_tracks = [t for t in tracks if len(t) >= 7 and t[5] != 'person']
+        if not obj_tracks:
+            return
+
+        total = len(obj_tracks)
+        self.table_scroll = max(0, min(self.table_scroll, max(0, total - self.table_max_rows)))
+        visible = obj_tracks[self.table_scroll : self.table_scroll + self.table_max_rows]
+
+        row_h   = 20
+        col_w   = [50, 90, 100]
+        padding = 6
+        table_w = sum(col_w) + padding * 2
+        table_h = row_h * (self.table_max_rows + 1) + padding * 2  # 고정 높이
+
+        x0 = self.view_w - table_w - 10
+        y0 = 10
+
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (x0, y0), (x0 + table_w, y0 + table_h), (30, 30, 30), -1)
+        cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+
+        headers = ['ID', 'Class', 'State']
+        for i, (header, _) in enumerate(zip(headers, col_w)):
+            tx = x0 + padding + sum(col_w[:i])
+            ty = y0 + padding + row_h - 4
+            cv2.putText(frame, header, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (200, 200, 200), 1)
+
+        scroll_info = f"{self.table_scroll + 1}-{min(self.table_scroll + self.table_max_rows, total)}/{total}"
+        cv2.putText(frame, scroll_info, (x0 + table_w - 55, y0 + padding + row_h - 4),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (150, 150, 150), 1)
+
+        cv2.line(frame, (x0, y0 + row_h + padding), (x0 + table_w, y0 + row_h + padding), (100, 100, 100), 1)
+
+        for r, trk in enumerate(visible):
+            tid   = int(trk[4])
+            cls   = str(trk[5])
+            state = trk[6] if trk[6] else 'UNASSIGNED'
+            color = STATE_COLORS.get(state, (200, 200, 200))
+            ty = y0 + padding + row_h * (r + 2) - 4
+            for i, (text, _) in enumerate(zip([str(tid), cls, state], col_w)):
+                tx = x0 + padding + sum(col_w[:i])
+                cv2.putText(frame, text, (tx, ty), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
 
     ''' 
         track_id별로 랜덤한 컬러 지정 
