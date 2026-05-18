@@ -59,6 +59,8 @@ class ScreenHandler(BaseHandler):
                 self.rectangle_dot(frame, x1, y1, x2, y2, color, 1)
                 #cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
+        nearest_info = self._calc_nearest_person(tracks)
+
         if self.draw_tracks:
             for trk in tracks:
                 x1, y1, x2, y2 = self._to_pixel(trk[:4])
@@ -69,10 +71,10 @@ class ScreenHandler(BaseHandler):
                 cv2.putText(frame, f"ID:{tid}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 1)
 
             self._draw_obj_state(frame, tracks)
-            self._draw_nearest_person_line(frame, tracks)
+            self._draw_nearest_person_line(frame, tracks, nearest_info)
 
         cv2.imshow(self.window_name, frame)
-        self._draw_state_table(tracks)
+        self._draw_state_table(tracks, nearest_info)
         if not self._window_ready:
             cv2.setMouseCallback(self.window_name, self._on_mouse)
             cv2.setMouseCallback(self.table_window_name, self._on_mouse)
@@ -115,20 +117,33 @@ class ScreenHandler(BaseHandler):
             cv2.putText(frame, f"ID:{tid} [{state}]", (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-    def _draw_nearest_person_line(self, frame, tracks):
+    def _calc_nearest_person(self, tracks):
         person_tracks = [t for t in tracks if t[5] == 'person']
         obj_tracks    = [t for t in tracks if len(t) >= 7 and t[5] != 'person']
-        if not person_tracks or not obj_tracks:
-            return
-
+        result = {}
+        if not person_tracks:
+            return result
         for trk in obj_tracks:
-            ox, oy = self._to_pixel([(trk[0] + trk[2]) / 2, (trk[1] + trk[3]) / 2,
-                                      (trk[0] + trk[2]) / 2, (trk[1] + trk[3]) / 2])[:2]
+            obj_cx = (trk[0] + trk[2]) / 2
+            obj_cy = (trk[1] + trk[3]) / 2
             nearest = min(person_tracks,
-                          key=lambda p: ((p[0]+p[2])/2 - (trk[0]+trk[2])/2)**2
-                                      + ((p[1]+p[3])/2 - (trk[1]+trk[3])/2)**2)
-            px, py = self._to_pixel([(nearest[0] + nearest[2]) / 2, (nearest[1] + nearest[3]) / 2,
-                                      (nearest[0] + nearest[2]) / 2, (nearest[1] + nearest[3]) / 2])[:2]
+                          key=lambda p: ((p[0]+p[2])/2 - obj_cx)**2 + ((p[1]+p[3])/2 - obj_cy)**2)
+            dist = (((nearest[0]+nearest[2])/2 - obj_cx)**2 + ((nearest[1]+nearest[3])/2 - obj_cy)**2) ** 0.5
+            result[int(trk[4])] = (nearest, dist)
+        return result
+
+    def _draw_nearest_person_line(self, frame, tracks, nearest_info):
+        for trk in tracks:
+            if len(trk) < 7 or trk[5] == 'person':
+                continue
+            tid = int(trk[4])
+            if tid not in nearest_info:
+                continue
+            nearest, _ = nearest_info[tid]
+            ox, oy = self._to_pixel([(trk[0]+trk[2])/2, (trk[1]+trk[3])/2,
+                                      (trk[0]+trk[2])/2, (trk[1]+trk[3])/2])[:2]
+            px, py = self._to_pixel([(nearest[0]+nearest[2])/2, (nearest[1]+nearest[3])/2,
+                                      (nearest[0]+nearest[2])/2, (nearest[1]+nearest[3])/2])[:2]
             cv2.line(frame, (ox, oy), (px, py), (200, 200, 200), 1, cv2.LINE_AA)
 
     def _on_mouse(self, event, *args, **_):
@@ -139,7 +154,7 @@ class ScreenHandler(BaseHandler):
             else:
                 self.table_scroll += 1
 
-    def _draw_state_table(self, tracks):
+    def _draw_state_table(self, tracks, nearest_info):
         STATE_COLORS = {
             'WITH_OWNER' : (0, 255, 0),
             'STATIC'     : (0, 255, 255),
@@ -158,8 +173,7 @@ class ScreenHandler(BaseHandler):
         canvas = np.zeros((table_h, table_w, 3), dtype=np.uint8)
         canvas[:] = (30, 30, 30)
 
-        person_tracks = [t for t in tracks if t[5] == 'person']
-        obj_tracks    = [t for t in tracks if len(t) >= 7 and t[5] != 'person']
+        obj_tracks = [t for t in tracks if len(t) >= 7 and t[5] != 'person']
         total = len(obj_tracks)
 
         if total > 0:
@@ -187,16 +201,7 @@ class ScreenHandler(BaseHandler):
             state = trk[6] if trk[6] else 'UNASSIGNED'
             color = STATE_COLORS.get(state, (200, 200, 200))
 
-            obj_cx = (trk[0] + trk[2]) / 2
-            obj_cy = (trk[1] + trk[3]) / 2
-            if person_tracks:
-                min_dist = min(
-                    ((p[0] + p[2]) / 2 - obj_cx) ** 2 + ((p[1] + p[3]) / 2 - obj_cy) ** 2
-                    for p in person_tracks
-                ) ** 0.5
-                dist_str = f"{min_dist:.2f}"
-            else:
-                dist_str = '-'
+            dist_str = f"{nearest_info[tid][1]:.2f}" if tid in nearest_info else '-'
 
             ty = padding + row_h * (r + 2) - 4
             for i, (text, _) in enumerate(zip([str(tid), cls, state, dist_str], col_w)):
