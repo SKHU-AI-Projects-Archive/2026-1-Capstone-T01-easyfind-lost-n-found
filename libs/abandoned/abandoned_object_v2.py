@@ -11,7 +11,7 @@ class objectState(Enum):
     SUSPECTED = 2
     LOST = 3
 
-class abandonedObject:
+class abandonedObjectV2:
     def __init__(self, config):
         
         self.config = config
