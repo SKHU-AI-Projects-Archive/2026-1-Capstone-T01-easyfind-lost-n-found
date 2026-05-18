@@ -69,6 +69,7 @@ class ScreenHandler(BaseHandler):
                 cv2.putText(frame, f"ID:{tid}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 1)
 
             self._draw_obj_state(frame, tracks)
+            self._draw_nearest_person_line(frame, tracks)
 
         cv2.imshow(self.window_name, frame)
         self._draw_state_table(tracks)
@@ -113,6 +114,22 @@ class ScreenHandler(BaseHandler):
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
             cv2.putText(frame, f"ID:{tid} [{state}]", (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+    def _draw_nearest_person_line(self, frame, tracks):
+        person_tracks = [t for t in tracks if t[5] == 'person']
+        obj_tracks    = [t for t in tracks if len(t) >= 7 and t[5] != 'person']
+        if not person_tracks or not obj_tracks:
+            return
+
+        for trk in obj_tracks:
+            ox, oy = self._to_pixel([(trk[0] + trk[2]) / 2, (trk[1] + trk[3]) / 2,
+                                      (trk[0] + trk[2]) / 2, (trk[1] + trk[3]) / 2])[:2]
+            nearest = min(person_tracks,
+                          key=lambda p: ((p[0]+p[2])/2 - (trk[0]+trk[2])/2)**2
+                                      + ((p[1]+p[3])/2 - (trk[1]+trk[3])/2)**2)
+            px, py = self._to_pixel([(nearest[0] + nearest[2]) / 2, (nearest[1] + nearest[3]) / 2,
+                                      (nearest[0] + nearest[2]) / 2, (nearest[1] + nearest[3]) / 2])[:2]
+            cv2.line(frame, (ox, oy), (px, py), (200, 200, 200), 1, cv2.LINE_AA)
 
     def _on_mouse(self, event, *args, **_):
         flags = args[2] if len(args) > 2 else 0
