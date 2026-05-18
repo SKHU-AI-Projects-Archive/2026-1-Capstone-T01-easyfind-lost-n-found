@@ -200,6 +200,8 @@ class BYTETracker(BaseTracker):
         self.kalman_filter = KalmanFilter()
 
         self.classes = config.get('classes', [])
+        class_ids = config.get('class_ids', list(range(len(self.classes))))
+        self.class_map = dict(zip(class_ids, self.classes))
         # 확인용
         print('[BYTE Tracker] Initialized')
 
@@ -445,7 +447,7 @@ class BYTETracker(BaseTracker):
         for strack in output_stracks:
             x1, y1, x2, y2 = strack.tlbr
             cls_id = int(strack.class_id)
-            cls_name = self.classes[cls_id] if cls_id < len(self.classes) else cls_id
+            cls_name = self.class_map.get(cls_id, cls_id)
 
             output_list.append([
                 float(x1 / img_w),
