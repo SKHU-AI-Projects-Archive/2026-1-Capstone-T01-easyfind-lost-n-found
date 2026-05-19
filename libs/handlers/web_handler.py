@@ -111,7 +111,7 @@ def start_detection():
         
         # 2. Update configs/ab.yaml
         config_path = "configs/ab.yaml"
-        template_path = "configs/image_yoloworld_deepsort.yaml" 
+        template_path = "configs/webcam_yolo11_bytetracker.yaml" 
         # use grounding-dino or yoloworld as detector 
         
         conf = None
@@ -137,7 +137,7 @@ def start_detection():
 
         # 3. Execution
         # On Windows, we often use 'python'
-        full_command = "python main__.py -c configs/ab.yaml"
+        full_command = "python3 main.py -c configs/solo_cam.yaml"
         subprocess.Popen(full_command, shell=True)
         
         return jsonify({
