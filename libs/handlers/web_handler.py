@@ -1,10 +1,20 @@
+import os
 import cv2
 import time
 import random
 import threading
 from flask import Flask, Response, render_template_string, jsonify
+from flask import request
 from flask_cors import CORS
 from .base_handler import BaseHandler
+import yaml
+import subprocess # to use googletrans
+
+try:
+    from googletrans import Translator
+    has_translator = True
+except ImportError:
+    has_translator = False
 
 # Global dictionary to store the latest encoded frame for each pipeline
 latest_frames = {}
@@ -12,6 +22,22 @@ latest_frames = {}
 detection_history = []
 frame_lock = threading.Lock()
 history_lock = threading.Lock()
+
+metadata_lock = threading.Lock()
+
+
+# Global variables for frames and metadata
+latest_frames = {}
+latest_metadata = {
+    "pipelines": {},
+    "summary": {
+        "suspected": 0,
+        "confirmed": 0,
+        "taken": 0
+    },
+    "history": []
+}
+
 
 app = Flask(__name__)
 CORS(app)
@@ -60,6 +86,66 @@ def generate_frames(pipe_name):
 def video_feed(pipe_name):
     return Response(generate_frames(pipe_name),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/api/status')
+def get_status():
+    with metadata_lock:
+        return jsonify(latest_metadata)
+
+@app.route('/api/start_detection', methods=['POST'])
+def start_detection():
+    try:
+        req_data = request.get_json()
+        insert_text = req_data.get('insert', '')
+        
+        # 1. Translation (Korean to English)
+        target_class = "object" # Default
+        if insert_text and has_translator:
+            try:
+                translator = Translator()
+                translated = translator.translate(insert_text, src='ko', dest='en')
+                target_class = translated.text.lower()
+                print(f"[WebHandler] Translated '{insert_text}' to '{target_class}'")
+            except Exception as e:
+                print(f"[WebHandler] Translation Error: {e}")
+        
+        # 2. Update configs/ab.yaml
+        config_path = "configs/ab.yaml"
+        template_path = "configs/image_yoloworld_deepsort.yaml" 
+        # use grounding-dino or yoloworld as detector 
+        
+        conf = None
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                conf = yaml.safe_load(f)
+        elif os.path.exists(template_path):
+            with open(template_path, 'r') as f:
+                conf = yaml.safe_load(f)
+        
+        if conf:
+            # Inject the translated class into the first pipeline's detector
+            if 'pipelines' in conf and len(conf['pipelines']) > 0:
+                detector_cfg = conf['pipelines'][0].get('detector', {})
+                if detector_cfg.get('type') == 'YOLOWorldDetector':
+                    detector_cfg['classes'] = [target_class]
+                    print(f"[WebHandler__] Updated ab.yaml with class: {target_class}")
+            
+            with open(config_path, 'w') as f:
+                yaml.dump(conf, f, default_flow_style=False)
+        else:
+            print("[WebHandler__] Warning: No config or template found. Running with current ab.yaml if exists.")
+
+        # 3. Execution
+        # On Windows, we often use 'python'
+        full_command = "python main__.py -c configs/ab.yaml"
+        subprocess.Popen(full_command, shell=True)
+        
+        return jsonify({
+            "status": "success", 
+            "message": f"Detection started with target: {target_class}"
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 class WebHandler(BaseHandler):
     _server_started = False
