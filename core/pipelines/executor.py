@@ -48,8 +48,10 @@ class PipelineExecutor(mp.Process):
                     'pipe_name': self.name_tag,
                     'frame_id': meta['frame_id'],
                     'detections': dets,
-                    'tracks': abandoned_tracks,
-                    'shm_meta': meta
+                    'tracks': tracks,
+                    'tracks_ab' : abandoned_tracks,
+                    'shm_meta': meta,
+                    'shm_name': self.shm_name # 데이터 출처 명시
                 }
 
                 self.result_queue.put(result_package)

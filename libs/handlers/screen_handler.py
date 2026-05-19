@@ -27,7 +27,7 @@ class ScreenHandler(BaseHandler):
         pipe_name = data.get('pipe_name', 'Unknown')
         frame_id = data.get('frame_id', 0)
         detections = data.get('detections', [])
-        tracks = data.get('tracks', [])
+        tracks = data.get('tracks_ab', [])
 
         # Use pipe_name as window name to create separate windows
         win_name = f"[{pipe_name}] Monitoring"
@@ -62,7 +62,7 @@ class ScreenHandler(BaseHandler):
                     cid = int(det[-1])
                 except (ValueError, TypeError):
                     cid = hash(det[-1])
-                color = self.class_color(cid)
+                color = self.class_color(cid, None)
                 self.rectangle_dot(frame, x1, y1, x2, y2, color, 2)
 
         if self.draw_tracks:
@@ -79,7 +79,8 @@ class ScreenHandler(BaseHandler):
                 except (ValueError, TypeError):
                     cid = hash(trk[5])
                 
-                color = self.class_color(cid)
+                state = trk[6] if len(trk) > 6 else None
+                color = self.class_color(cid, state)
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                 cv2.putText(frame, f"ID:{tid}", (x1, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 

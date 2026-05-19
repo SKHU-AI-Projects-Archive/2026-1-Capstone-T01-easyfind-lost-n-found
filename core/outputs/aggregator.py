@@ -51,12 +51,16 @@ class OutputAggregator(mp.Process):
         while self.running:
             try:
                 data = self.queue.get(timeout=1.0)
-                shm_name = data.get('shm_name')
+                shm_name = data.get('shm_name') # executor.py에서 복사해준 최상위 키 사용
                 if not shm_name: continue
                 
-                reader = self._get_reader(shm_name)
-                for h in self.handlers:
-                    h.handle(data, reader)
+                try:
+                    reader = self._get_reader(shm_name)
+                    for h in self.handlers:
+                        h.handle(data, reader)
+                except FileNotFoundError as e:
+                    # 카메라 소스가 아직 준비되지 않았을 때 시스템이 죽지 않도록 예외 처리
+                    continue
 
                 if cv2.waitKey(1) == ord('q'): 
                     self.running = False
@@ -78,9 +82,12 @@ class OutputAggregator(mp.Process):
             if data:
                 shm_name = data.get('shm_name')
                 if shm_name:
-                    reader = self._get_reader(shm_name)
-                    for h in self.handlers: 
-                        h.handle(data, reader)
+                    try:
+                        reader = self._get_reader(shm_name)
+                        for h in self.handlers: 
+                            h.handle(data, reader)
+                    except FileNotFoundError:
+                        pass
             
             if cv2.waitKey(1) == ord('q'): 
                 self.running = False
