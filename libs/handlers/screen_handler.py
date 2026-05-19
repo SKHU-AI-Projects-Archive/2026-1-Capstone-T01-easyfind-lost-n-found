@@ -102,13 +102,37 @@ class ScreenHandler(BaseHandler):
         for win in self.windows:
             cv2.destroyWindow(win)
 
-    def class_color(self, class_id):
-        random.seed(class_id)
+    ''' 
+        track_id별로 랜덤한 컬러 지정 
+        (단 시드는 고정)
+        => track_id를 seed로 이용
+    '''
+    '''def track_color(self, track_id):
+        random.seed(track_id)
         color = (
             random.randint(0, 255),
             random.randint(0, 255),
             random.randint(0, 255)
         )
+        return color'''
+    
+    ''' class_id를 seed로 하여 클래스별 랜덤한 색을 가지게함 '''
+    def class_color(self, class_id, state):
+
+        if state == 'SUSPECTED' or state == 'LOST':
+            if state == 'SUSPECTED':
+                color = (0, 165, 255)
+
+            elif state == 'LOST':
+                color = (0, 0, 255)
+
+        else:
+            random.seed(class_id)
+            color = (
+                random.randint(0, 255),
+                random.randint(0, 255),
+                random.randint(0, 255)
+            )
         return color 
     
     def rectangle_dot(self, frame, x1, y1, x2, y2, color, thickness=2):

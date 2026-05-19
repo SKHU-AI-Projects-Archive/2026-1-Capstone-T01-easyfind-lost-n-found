@@ -23,6 +23,7 @@ class PipelineExecutor(mp.Process):
             detector = build_detector(self.config['detector'])
             tracker = build_tracker(self.config['tracker'])
             abandoned = build_abandoned(self.config['abandoned'])
+            print(f"[{self.name_tag}] PID: {self.pid} Initialized.")
         except Exception as e:
             print(f"[{self.name_tag}] Build Failed: {e}")
             return
@@ -43,15 +44,18 @@ class PipelineExecutor(mp.Process):
 
                 abandoned_tracks = abandoned.update(meta['frame_id'], tracks)
 
-                self.result_queue.put({
+                result_package = {
                     'pipe_name': self.name_tag,
                     'frame_id': meta['frame_id'],
                     'detections': dets,
-                    'tracks': tracks,
-                    'tracks_ab' : abandoned_tracks,
-                    'shm_meta': meta,
-                    'shm_name': self.shm_name # 데이터 출처 명시
-                })
+                    'tracks': abandoned_tracks,
+                    'shm_meta': meta
+                }
+
+                self.result_queue.put(result_package)
+
+        except Exception as e:
+            print(f"[{self.name_tag}] Runtime Error: {e}")
         finally:
             reader.close()
             print(f"[{self.name_tag}] Stopped.")
