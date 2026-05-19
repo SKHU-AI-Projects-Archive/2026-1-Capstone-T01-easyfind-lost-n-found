@@ -18,3 +18,8 @@ lap
 cython
 cython-bbox
 
+# frontend
+flask
+flask-cors
+
+
