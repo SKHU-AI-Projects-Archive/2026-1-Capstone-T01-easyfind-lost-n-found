@@ -199,9 +199,12 @@ class BYTETracker(BaseTracker):
         self.max_time_lost = self.buffer_size
         self.kalman_filter = KalmanFilter()
 
-        self.classes = config.get('classes', [])
-        class_ids = config.get('class_ids', list(range(len(self.classes))))
-        self.class_map = dict(zip(class_ids, self.classes))
+        classes_config = config.get('classes', [])
+        if isinstance(classes_config, dict):
+            self.class_map = {int(k): v for k, v in classes_config.items()}
+        else:
+            class_ids = config.get('class_ids', list(range(len(classes_config))))
+            self.class_map = dict(zip(class_ids, classes_config))
         # 확인용
         print('[BYTE Tracker] Initialized')
 

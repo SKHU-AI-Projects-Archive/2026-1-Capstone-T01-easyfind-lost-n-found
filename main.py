@@ -13,7 +13,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--config", type=str, default="configs/dummy_config.yaml")
     args = parser.parse_args()
 
-    with open(args.config, 'r') as f:
+    with open(args.config, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
 
     SHM_NAME = config.get('setting', {}).get('shared_memory_name', "exp_dummy")
