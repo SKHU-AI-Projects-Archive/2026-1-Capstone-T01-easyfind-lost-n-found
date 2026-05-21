@@ -1,0 +1,73 @@
+output:
+  handlers:
+  - draw_detections: true
+    draw_tracks: true
+    enable: true
+    show_info: true
+    type: ScreenHandler
+    view_height: 960
+    view_width: 1280
+  - enable: true
+    filename: tracking_data.csv
+    output_dir: ./logs
+    type: FileLogHandler
+  - draw_detections: true
+    draw_tracks: true
+    enable: true
+    port: 5001
+    show_info: true
+    type: WebHandler
+    view_height: 960
+    view_width: 1280
+  mode: sync
+pipelines:
+- abandoned:
+    clean_threshold_sec: 3
+    dist_threshold: 0.08
+    fps: 30
+    iou_threshold: 0.75
+    lost_threshold_min: 15
+    owner_frame_threshold: 30
+    prev_clean_threshold_sec: 2
+    restore_threshold: 0.7
+    score_threshold: 0.7
+    static_dist_threshold: 0.01
+    suspect_threshold_min: 15
+    type: abandonedObject
+    unassigned_threshold_min: 5
+  detector:
+    classes:
+    - object
+    conf: 0.25
+    imgsz: 640
+    iou: 0.7
+    type: YOLOWorldDetector
+    weights_path: assets/weights/yolov8s-worldv2.pt
+  enable: true
+  gpu_id: 0
+  name: Office10_Cam
+  source_id: cam_10
+  tracker:
+    classes:
+    - person
+    - bag
+    - laptop
+    - keyboard
+    - mouse
+    crowd: false
+    fps: 30
+    match_thresh: 0.8
+    track_buffer: 30
+    track_thresh: 0.5
+    type: BYTETracker
+setting:
+  project_name: Multi-Webcam-Separate-Windows
+sources:
+- buffer_size: 30
+  device_index: 2
+  fps: 30
+  height: 480
+  id: cam_10
+  shared_memory_name: shm_cam_10
+  type: WebcamSource
+  width: 640

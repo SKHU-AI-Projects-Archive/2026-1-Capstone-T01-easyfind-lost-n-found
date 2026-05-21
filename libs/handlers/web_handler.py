@@ -111,33 +111,43 @@ def start_detection():
         
         # 2. Update configs/ab.yaml
         config_path = "configs/ab.yaml"
-        template_path = "configs/webcam_yolo11_bytetracker.yaml" 
-        # use grounding-dino or yoloworld as detector 
+        template_path = "configs/solo_cam.yaml" 
         
         conf = None
-        if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
-                conf = yaml.safe_load(f)
-        elif os.path.exists(template_path):
+        if os.path.exists(template_path):
             with open(template_path, 'r') as f:
+                conf = yaml.safe_load(f)
+        elif os.path.exists(config_path):
+            with open(config_path, 'r') as f:
                 conf = yaml.safe_load(f)
         
         if conf:
             # Inject the translated class into the first pipeline's detector
+            # FORCED: Switch to YOLOWorldDetector for "Precise Detection" support
             if 'pipelines' in conf and len(conf['pipelines']) > 0:
-                detector_cfg = conf['pipelines'][0].get('detector', {})
-                if detector_cfg.get('type') == 'YOLOWorldDetector':
-                    detector_cfg['classes'] = [target_class]
-                    print(f"[WebHandler__] Updated ab.yaml with class: {target_class}")
+                conf['pipelines'][0]['detector'] = {
+                    'type': 'YOLOWorldDetector',
+                    'weights_path': 'assets/weights/yolov8s-worldv2.pt',
+                    'imgsz': 640,
+                    'conf': 0.25,
+                    'iou': 0.7,
+                    'classes': [target_class]
+                }
+                print(f"[WebHandler] Forced YOLOWorldDetector in {config_path} with class: {target_class}")
+            
+            # Change port to 5001 for the engine process
+            if 'output' in conf and 'handlers' in conf['output']:
+                for h in conf['output']['handlers']:
+                    if h.get('type') == 'WebHandler':
+                        h['port'] = 5001
             
             with open(config_path, 'w') as f:
                 yaml.dump(conf, f, default_flow_style=False)
         else:
-            print("[WebHandler__] Warning: No config or template found. Running with current ab.yaml if exists.")
+            print("[WebHandler] Warning: No config or template found.")
 
         # 3. Execution
-        # On Windows, we often use 'python'
-        full_command = "python3 main.py -c configs/solo_cam.yaml"
+        full_command = "python3 main.py -c configs/ab.yaml"
         subprocess.Popen(full_command, shell=True)
         
         return jsonify({

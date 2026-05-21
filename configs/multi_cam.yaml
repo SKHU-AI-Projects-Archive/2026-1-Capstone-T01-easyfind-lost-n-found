@@ -27,7 +27,7 @@ pipelines:
 
     detector:
       type: "YOLOWorldDetector"
-      weights_path: assets/weights/yolov8l-worldv2.pt
+      weights_path: assets/weights/yolov8s-worldv2.pt
       imgsz: 640
       iou: 0.7
       conf: 0.5
@@ -67,7 +67,7 @@ pipelines:
 
     detector:
       type: "YOLOWorldDetector"
-      weights_path: assets/weights/yolov8l-worldv2.pt
+      weights_path: assets/weights/yolov8s-worldv2.pt
       imgsz: 640
       iou: 0.7
       conf: 0.5
