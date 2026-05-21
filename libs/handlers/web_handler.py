@@ -54,7 +54,7 @@ INDEX_HTML = """
     <h1>Multi-Pipeline Video Stream</h1>
     {% for name in pipe_names %}
         <h3>{{ name }}</h3>
-        <img src="/video_feed/{{ name }}" width="640">
+        <img src="/video_feed/{{ name }}" width="1280">
     {% endfor %}
 </body>
 </html>
