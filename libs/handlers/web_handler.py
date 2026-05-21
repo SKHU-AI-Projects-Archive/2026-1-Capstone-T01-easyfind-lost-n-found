@@ -3,6 +3,7 @@ import cv2
 import time
 import random
 import threading
+import signal
 from flask import Flask, Response, render_template_string, jsonify
 from flask import request
 from flask_cors import CORS
@@ -25,9 +26,11 @@ history_lock = threading.Lock()
 
 metadata_lock = threading.Lock()
 
+# Track the precise detection subprocess
+precise_proc = None
+proc_lock = threading.Lock()
 
 # Global variables for frames and metadata
-latest_frames = {}
 latest_metadata = {
     "pipelines": {},
     "summary": {
@@ -38,11 +41,24 @@ latest_metadata = {
     "history": []
 }
 
-
 app = Flask(__name__)
 CORS(app)
 
-# ... (INDEX_HTML remains same)
+INDEX_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Stream</title>
+</head>
+<body>
+    <h1>Multi-Pipeline Video Stream</h1>
+    {% for name in pipe_names %}
+        <h3>{{ name }}</h3>
+        <img src="/video_feed/{{ name }}" width="640">
+    {% endfor %}
+</body>
+</html>
+"""
 
 @app.route('/')
 def index():
@@ -58,18 +74,15 @@ def get_cameras():
 @app.route('/api/detections')
 def get_detections():
     with history_lock:
-        # Return all collected track history (States 0-3)
         return jsonify(detection_history)
 
 @app.route('/api/alerts')
 def get_alerts():
     with history_lock:
-        # Return only alerts (States 1: SEPARATED, 2: SUSPECTED, 3: LOST)
         alerts = [item for item in detection_history if item['state'] in ['SEPARATED', 'SUSPECTED', 'LOST']]
         return jsonify(alerts)
 
 def generate_frames(pipe_name):
-    # ... (generate_frames logic remains same)
     while True:
         with frame_lock:
             frame = latest_frames.get(pipe_name)
@@ -94,12 +107,12 @@ def get_status():
 
 @app.route('/api/start_detection', methods=['POST'])
 def start_detection():
+    global precise_proc
     try:
         req_data = request.get_json()
         insert_text = req_data.get('insert', '')
         
-        # 1. Translation (Korean to English)
-        target_class = "object" # Default
+        target_class = "object"
         if insert_text and has_translator:
             try:
                 translator = Translator()
@@ -109,7 +122,6 @@ def start_detection():
             except Exception as e:
                 print(f"[WebHandler] Translation Error: {e}")
         
-        # 2. Update configs/ab.yaml
         config_path = "configs/ab.yaml"
         template_path = "configs/solo_cam.yaml" 
         
@@ -122,8 +134,6 @@ def start_detection():
                 conf = yaml.safe_load(f)
         
         if conf:
-            # Inject the translated class into the first pipeline's detector
-            # FORCED: Switch to YOLOWorldDetector for "Precise Detection" support
             if 'pipelines' in conf and len(conf['pipelines']) > 0:
                 conf['pipelines'][0]['detector'] = {
                     'type': 'YOLOWorldDetector',
@@ -135,7 +145,6 @@ def start_detection():
                 }
                 print(f"[WebHandler] Forced YOLOWorldDetector in {config_path} with class: {target_class}")
             
-            # Change port to 5001 for the engine process
             if 'output' in conf and 'handlers' in conf['output']:
                 for h in conf['output']['handlers']:
                     if h.get('type') == 'WebHandler':
@@ -146,9 +155,17 @@ def start_detection():
         else:
             print("[WebHandler] Warning: No config or template found.")
 
-        # 3. Execution
-        full_command = "python3 main.py -c configs/ab.yaml"
-        subprocess.Popen(full_command, shell=True)
+        with proc_lock:
+            if precise_proc and precise_proc.poll() is None:
+                try:
+                    os.killpg(os.getpgid(precise_proc.pid), signal.SIGTERM)
+                    print("[WebHandler] Terminated previous detection process.")
+                    time.sleep(0.5)
+                except Exception as e:
+                    print(f"[WebHandler] Error terminating process: {e}")
+            
+            full_command = "python3 main.py -c configs/ab.yaml"
+            precise_proc = subprocess.Popen(full_command, shell=True, preexec_fn=os.setsid)
         
         return jsonify({
             "status": "success", 
@@ -156,6 +173,21 @@ def start_detection():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/stop_detection', methods=['POST'])
+def stop_detection():
+    global precise_proc
+    with proc_lock:
+        if precise_proc and precise_proc.poll() is None:
+            try:
+                os.killpg(os.getpgid(precise_proc.pid), signal.SIGTERM)
+                print("[WebHandler] Detection process stopped.")
+                precise_proc = None
+                return jsonify({"status": "success", "message": "Detection stopped"})
+            except Exception as e:
+                return jsonify({"status": "error", "message": str(e)}), 500
+        else:
+            return jsonify({"status": "success", "message": "No active detection process"})
 
 class WebHandler(BaseHandler):
     _server_started = False
@@ -235,12 +267,9 @@ class WebHandler(BaseHandler):
         with history_lock:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             for trk in tracks_ab:
-                # trk 구조: [x1, y1, x2, y2, track_id, class_name, state]
-                # state: WITH_OWNER, SEPARATED, SUSPECTED, LOST
                 state = trk[6]
-                if state: # state가 존재할 때만 기록
+                if state:
                     track_id = trk[4]
-                    # 중복 방지 및 상태 업데이트
                     found = False
                     for item in detection_history:
                         if item['track_id'] == track_id and item['pipe_name'] == pipe_name:
@@ -258,7 +287,7 @@ class WebHandler(BaseHandler):
                             'first_seen': current_time,
                             'last_seen': current_time
                         })
-            if len(detection_history) > 200: # 이력 보관 개수 상향
+            if len(detection_history) > 200:
                 detection_history.pop(0)
 
     def _to_pixel(self, bbox_norm):
@@ -296,4 +325,11 @@ class WebHandler(BaseHandler):
             cv2.line(frame, lStart, lEnd, color, thickness)
 
     def release(self):
+        global precise_proc
+        with proc_lock:
+            if precise_proc and precise_proc.poll() is None:
+                try:
+                    os.killpg(os.getpgid(precise_proc.pid), signal.SIGTERM)
+                except:
+                    pass
         pass

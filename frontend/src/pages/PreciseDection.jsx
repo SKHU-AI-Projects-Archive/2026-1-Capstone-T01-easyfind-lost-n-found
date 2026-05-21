@@ -69,13 +69,33 @@ function PreciseDection() {
     }
   }
 
+  const handleStopDetection = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('http://localhost:5000/api/stop_detection', {
+        method: 'POST'
+      })
+      if (res.ok) {
+        setStatus('탐색이 중지되었습니다.')
+        setVideoUrl('')
+      } else {
+        setStatus('중지 중 오류가 발생했습니다.')
+      }
+    } catch (err) {
+      console.error(err)
+      setStatus('서버 연결 실패')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
       <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '8px' }}>Precise Detection</h2>
       <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '24px' }}>고급 분석 및 정밀 탐색 프로세스를 위한 조건을 설정하고 시작합니다.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: videoUrl ? '1fr 1fr' : '1fr', gap: '24px' }}>
-        {/* Left Side: Filters and Start Button */}
+        {/* Left Side: Filters and Control Buttons */}
         <div>
           {/* Filters */}
           <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
@@ -118,29 +138,55 @@ function PreciseDection() {
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <button 
-              onClick={handleStartDetection}
-              disabled={loading}
-              style={{
-                background: '#1a1f2e',
-                color: 'white',
-                padding: '16px 64px',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '18px',
-                fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                transition: 'transform 0.1s, background 0.2s',
-                width: '100%'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = '#2a2f3e'}
-              onMouseLeave={e => e.currentTarget.style.background = '#1a1f2e'}
-              onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
-              onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-            >
-              {loading ? '시작 중...' : '탐색 시작'}
-            </button>
+            <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+              <button 
+                onClick={handleStartDetection}
+                disabled={loading}
+                style={{
+                  flex: 1,
+                  background: '#1a1f2e',
+                  color: 'white',
+                  padding: '16px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  transition: 'transform 0.1s, background 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#2a2f3e'}
+                onMouseLeave={e => e.currentTarget.style.background = '#1a1f2e'}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {loading ? '처리 중...' : '탐색 시작'}
+              </button>
+
+              <button 
+                onClick={handleStopDetection}
+                disabled={loading}
+                style={{
+                  flex: 1,
+                  background: '#ef4444',
+                  color: 'white',
+                  padding: '16px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                  transition: 'transform 0.1s, background 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#dc2626'}
+                onMouseLeave={e => e.currentTarget.style.background = '#ef4444'}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.98)'}
+                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                탐색 중지
+              </button>
+            </div>
 
             {status && (
               <div style={{ marginTop: '20px', padding: '12px 24px', borderRadius: '8px', background: '#f3f4f6', color: '#374151', fontSize: '14px', fontWeight: '500' }}>
