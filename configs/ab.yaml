@@ -37,7 +37,7 @@ pipelines:
     unassigned_threshold_min: 5
   detector:
     classes:
-    - object
+    - person
     conf: 0.25
     imgsz: 640
     iou: 0.7
@@ -64,10 +64,11 @@ setting:
   project_name: Multi-Webcam-Separate-Windows
 sources:
 - buffer_size: 30
-  device_index: 2
   fps: 30
   height: 480
   id: cam_10
+  loop: true
   shared_memory_name: shm_cam_10
-  type: WebcamSource
+  type: VideoSource
+  video_path: assets/videos/fps30_output.mp4
   width: 640

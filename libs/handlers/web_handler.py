@@ -4,6 +4,7 @@ import time
 import random
 import threading
 import signal
+import asyncio
 from flask import Flask, Response, render_template_string, jsonify
 from flask import request
 from flask_cors import CORS
@@ -43,6 +44,28 @@ latest_metadata = {
 
 app = Flask(__name__)
 CORS(app)
+
+# loop 충돌을 방지하기 위해 안전하게 번역을 수행하는 헬퍼 함수
+def safe_translate(text, src='ko', dest='en'):
+    if not has_translator:
+        return None
+    try:
+        # 4.0.2의 비동기 엔진을 동기식으로 안전하게 구동하기 위해 새 루프 생성
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # async with 구문으로 Translator 인스턴스를 안전하게 생성 및 해제
+        async def _translate():
+            async with Translator() as translator:
+                result = await translator.translate(text, src=src, dest=dest)
+                return result.text
+                
+        translated_text = loop.run_until_complete(_translate())
+        loop.close()
+        return translated_text
+    except Exception as e:
+        print(f"[Translation Technical Error] {e}")
+        return None
 
 INDEX_HTML = """
 <!DOCTYPE html>
@@ -112,18 +135,18 @@ def start_detection():
         req_data = request.get_json()
         insert_text = req_data.get('insert', '')
         
-        target_class = "object"
+        target_class = "bag"
         if insert_text and has_translator:
-            try:
-                translator = Translator()
-                translated = translator.translate(insert_text, src='ko', dest='en')
-                target_class = translated.text.lower()
+            # 헬퍼 함수를 통해 번역 시도
+            translated_result = safe_translate(insert_text, src='ko', dest='en')
+            if translated_result:
+                target_class = translated_result.lower()
                 print(f"[WebHandler] Translated '{insert_text}' to '{target_class}'")
-            except Exception as e:
-                print(f"[WebHandler] Translation Error: {e}")
+            else:
+                print(f"[WebHandler] Translation failed, using default class: '{target_class}'")
         
         config_path = "configs/ab.yaml"
-        template_path = "configs/solo_cam.yaml" 
+        template_path = "configs/solo_video.yaml" 
         
         conf = None
         if os.path.exists(template_path):
