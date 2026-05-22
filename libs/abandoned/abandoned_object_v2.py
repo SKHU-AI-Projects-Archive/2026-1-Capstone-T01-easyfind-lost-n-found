@@ -1,7 +1,11 @@
+import os
 import time
 import math
 import numpy as np
+import cv2
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from scipy.optimize import linear_sum_assignment
 
 class objectState(Enum):
@@ -59,7 +63,9 @@ class abandonedObject:
         # {obj_id : {'frame' : , 'time': }}
         self.picked_up                  = {}
 
-    def update(self, frame_id, tracks):
+        self.scene_folder = Path(__file__).parent / 'scenes'
+
+    def update(self, frame_id, tracks, img=None):
         '''
             매프레임마다 tracking되는 object들의 상태를 업데이트해나간다 
             state : SEPARATED -> SUSPECTED -> LOST
@@ -499,6 +505,48 @@ class abandonedObject:
             'last_seen'     : obj_info.get('last_seen') if  frame_id is None else frame_id,
             'time'          : time.strftime('%Y-%m-%d %H:%M:%S')
         }
+
+    def _save_scene(self, img, bbox):
+        '''
+            _save_pickup과 함께 호출
+            누군가 분실물로 추정되는 물체를 가져갔다 판단되는 경우 
+            scence폴더의 year / month / day / hour 에 저장
+        '''
+        timestamp = datetime.now()
+        year = timestamp.year
+        month = timestamp.month
+        day = timestamp.day
+        hour = timestamp.hour
+
+        folder_path = self.scene_folder / str(year) / str(month) / str(day) / str(hour)
+        os.makedirs(folder_path, exist_ok=True)
+        file_path = str(folder_path / f"{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg")
+
+        img_h, img_w = img.shape[:2]
+        box_x1 = round(bbox[0] * img_w)
+        box_y1 = round(bbox[1] * img_h)
+        box_x2 = round(bbox[2] * img_w)
+        box_y2 = round(bbox[3] * img_h)
+
+        side = round(max(box_x2 - box_x1, box_y2 - box_y1) * 5)
+        cx = (box_x1 + box_x2) // 2
+        cy = (box_y1 + box_y2) // 2
+        crop_x1 = max(0, cx - side // 2)
+        crop_y1 = max(0, cy - side // 2)
+        crop_x2 = min(img_w, cx + side // 2)
+        crop_y2 = min(img_h, cy + side // 2)
+
+        crop = img[crop_y1:crop_y2, crop_x1:crop_x2]
+
+        timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        font_scale = max(0.4, crop.shape[1] / 600)
+        thickness = max(1, int(font_scale * 2))
+        (text_w, text_h), _ = cv2.getTextSize(timestamp_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+        x = crop.shape[1] - text_w - int(crop.shape[1] * 0.02)
+        y = text_h + int(crop.shape[0] * 0.02)
+        cv2.putText(crop, timestamp_str, (x, y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), thickness)
+
+        cv2.imwrite(file_path, crop)
 
 
 '''
