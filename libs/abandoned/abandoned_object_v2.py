@@ -3,6 +3,7 @@ import time
 import math
 import numpy as np
 import cv2
+import csv
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -14,6 +15,25 @@ class objectState(Enum):
     STATIC = 1
     SUSPECTED = 2
     LOST = 3
+
+class objLogger:
+    def __init__(self, pipename, folder):
+        self.folder = Path(folder) / pipename
+        os.makedirs(self.folder, exist_ok=True)
+
+        self.csv_path = str(self.folder / 'info.csv')
+        self.file = open(self.csv_path, 'w', newline='', encoding='utf-8')
+        self.writer = csv.writer(self.file)
+        self.writer.writerow(['obj_id', 'class', 'time'])
+
+    def save(self, obj_id, obj_info):
+        cls = obj_info.get('class')
+        timestamp = obj_info.get('last_seen(time)')
+        row = [obj_id, cls, timestamp]
+        self.writer.writerow(row)
+
+    def close(self):
+        self.file.close()
 
 class abandonedObject:
     def __init__(self, config):
@@ -64,6 +84,14 @@ class abandonedObject:
         self.picked_up                  = {}
 
         self.scene_folder = Path(__file__).parent / 'scenes'
+        self.obj_imgs_folder = Path(__file__).parent / 'obj-imgs'
+
+        # logger
+        self.pipename = config.get('name', 'default')
+        self.logger = objLogger(self.pipename, self.obj_imgs_folder)
+
+    def close(self):
+        self.logger.close()
 
     def update(self, frame_id, tracks, img=None):
         '''
@@ -76,6 +104,7 @@ class abandonedObject:
                             'bbox' : ?, bbox는 seaprated된 순간 갱신한다 -> 가만히 있는 물체의 id스위치가 일어나도 id를 복구하기 위해
                             'owner_scores' : {obj_id : {}, ...}
                             'last_seen' : ?,
+                            'last_seen(time) : ?,
                             'lost_start' : ?,
                             'static_start' : ?,}
                 - state = 2인경우 class(object의 종류)와 color(추후 색구분/추출하는 방법을 찾는경우 추가) 정보도 추가 
@@ -547,6 +576,25 @@ class abandonedObject:
         cv2.putText(crop, timestamp_str, (x, y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), thickness)
 
         cv2.imwrite(file_path, crop)
+
+    def _save_obj(self, obj_id, img, bbox):
+        '''
+            obj-imgs폴더에 
+            bbox crop 한 jpg 저장
+        '''
+        # 1. bbox를 crop
+        folder_path = self.obj_imgs_folder
+        os.makedirs(folder_path, exist_ok=True)
+        image_path = str(folder_path / f'{obj_id}.jpg')
+
+        img_h, img_w = img.shape[:2]
+        x1 = int(bbox[0] * img_w)
+        y1 = int(bbox[1] * img_h)
+        x2 = int(bbox[2] * img_w)
+        y2 = int(bbox[3] * img_h)
+
+        crop = img[y1:y2, x1:x2]
+        cv2.imwrite(image_path, crop)
 
 
 '''
