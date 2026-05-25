@@ -257,6 +257,7 @@ class abandonedObject:
                 'bbox'              : obj_track[:4],
                 'last_seen'         : frame_id,
                 'last_seen(time)'   : time.strftime('%Y-%m-%d %H:%M:%S'),
+                'last_crop_np'      : None,
                 'static_start'      : None,
                 'suspected_start'   : None,
                 'move_start'        : None,
@@ -535,7 +536,7 @@ class abandonedObject:
             'time'          : time.strftime('%Y-%m-%d %H:%M:%S')
         }
 
-    def _save_scene(self, img, bbox):
+    def _save_scene(self, obj_id, bbox, img):
         '''
             _save_pickup과 함께 호출
             누군가 분실물로 추정되는 물체를 가져갔다 판단되는 경우 
@@ -547,9 +548,9 @@ class abandonedObject:
         day = timestamp.day
         hour = timestamp.hour
 
-        folder_path = self.scene_folder / str(year) / str(month) / str(day) / str(hour)
+        folder_path = self.scene_folder / f'{year}-{month}-{day}' / str(hour)
         os.makedirs(folder_path, exist_ok=True)
-        file_path = str(folder_path / f"{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg")
+        file_path = str(folder_path / f"{obj_id}.jpg")
 
         img_h, img_w = img.shape[:2]
         box_x1 = round(bbox[0] * img_w)
@@ -565,7 +566,7 @@ class abandonedObject:
         crop_x2 = min(img_w, cx + side // 2)
         crop_y2 = min(img_h, cy + side // 2)
 
-        crop = img[crop_y1:crop_y2, crop_x1:crop_x2]
+        crop = img[crop_y1:crop_y2, crop_x1:crop_x2].copy()
 
         timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
         font_scale = max(0.4, crop.shape[1] / 600)
@@ -595,6 +596,64 @@ class abandonedObject:
 
         crop = img[y1:y2, x1:x2]
         cv2.imwrite(image_path, crop)
+
+
+    def _numpy_scene(self, img, bbox):
+        '''
+            SUSPECTED / LOST state인 object의 scene을 numpy 형태로 obj_state에 저장 
+            : _clean 대상이 되었을때 scene을 크롭하면 이미 없어진 상태의 장면이 저장될 가능성이 크다 
+              -> 마지막으로 보인 장면을 numpy 형태로 저장 후 해당 상태의 object가 clean 대상이 될 시 image로 변환하여 여장
+        '''
+        img_h, img_w = img.shape[:2]
+        box_x1 = round(bbox[0] * img_w)
+        box_y1 = round(bbox[1] * img_h)
+        box_x2 = round(bbox[2] * img_w)
+        box_y2 = round(bbox[3] * img_h)
+
+        side = round(max( box_x2 - box_x1, box_y2 - box_y1 ) * 5)
+        cx = (box_x1 + box_x2) // 2
+        cy = (box_y1 + box_y2) // 2
+        crop_x1 = max( 0, cx - side//2 )
+        crop_y1 = max( 0, cy - side//2)
+        crop_x2 = min( img_w, cx + side//2)
+        crop_y2 = min( img_h, cy + side//2)
+
+        crop = img[crop_y1:crop_y2, crop_x1:crop_x2].copy()
+        return crop
+
+    def _numpy2img(self, obj_id):
+        '''
+            obj_state에 저장된 numpy형태의 이미지 정보를 image파일로 저장
+        '''
+        obj_info = self.obj_state.get(obj_id)
+        if obj_info is None:
+            return
+        
+        crop = obj_info.get('last_crop_np')
+        if crop is None:
+            return 
+
+        timestamp_str = obj_info.get('last_seen(time)')
+        if timestamp_str is None:
+            return 
+        
+        dt = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S') # str type의 timestamp을 datetime 객체로 파싱
+        year = dt.year
+        month = dt.month
+        day = dt.day
+        hour = dt.hour
+
+        folder_path = self.scene_folder / f'{year}-{month}-{day}' / str(hour)
+        os.makedirs(folder_path, exist_ok=True)
+        file_path = str(folder_path / f'{obj_id}.jpg')
+
+        font_scale = max(0.4, crop.shape[1] / 600)
+        thickness = max(1, int(font_scale * 2))
+        (text_w, text_h), _ = cv2.getTextSize(timestamp_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+        x = crop.shape[1] - text_w - int(crop.shape[1] * 0.02)
+        y = text_h + int(crop.shape[0] * 0.02)
+        cv2.putText(crop, timestamp_str, (x, y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), thickness)
+        cv2.imwrite(file_path, crop)       
 
 
 '''
