@@ -1,8 +1,32 @@
+import os
 import time
 import math
 import numpy as np
+import cv2
+import csv
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from scipy.optimize import linear_sum_assignment
+
+class objLogger:
+    def __init__(self, pipename, folder):
+        self.folder = Path(folder) / pipename
+        os.makedirs(self.folder, exist_ok=True)
+
+        self.csv_path = str(self.folder / 'info.csv')
+        self.file = open(self.csv_path, 'w', newline='', encoding='utf-8')
+        self.writer = csv.writer(self.file)
+        self.writer.writerow(['obj_id', 'class', 'time'])
+
+    def save(self, obj_id, obj_info):
+        cls = obj_info.get('class')
+        timestamp = obj_info.get('last_seen(time)')
+        row = [obj_id, cls, timestamp]
+        self.writer.writerow(row)
+
+    def close(self):
+        self.file.close()
 
 class objectState(Enum):
     UNASSIGNED = -1
@@ -59,10 +83,19 @@ class abandonedObject:
         # state가 바뀔때마다 다른 딕셔너리로 옮기는 작업보다 간단히 상태만 수정하면 되므로 하나의 딕셔너리로 관리 
         self.obj_state = {}
 
-        # 누군가 분실물을 가져갔을때 시점, object id를 저장하는 딕셔너리 
+        # 누군가 분실물을 가져갔을때 시점, object id를 저장하는 딕셔너리
         self.picked_up = {}
 
-    def update(self, frame_id, tracks):
+        self.scene_folder = Path(__file__).parent / 'scenes'
+        self.obj_imgs_folder = Path(__file__).parent / 'obj-imgs'
+
+        self.pipename = config.get('name', 'default')
+        self.logger = objLogger(self.pipename, self.obj_imgs_folder)
+
+    def close(self):
+        self.logger.close()
+
+    def update(self, frame_id, tracks, img=None):
         '''
             매프레임마다 tracking되는 object들의 상태를 업데이트해나간다 
         
