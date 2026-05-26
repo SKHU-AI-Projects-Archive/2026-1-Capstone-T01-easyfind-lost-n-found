@@ -213,9 +213,11 @@ class abandonedObject:
                     continue
 
                 lapse = frame_id - move_start
-                if lapse >= self.move_lapse: #누군가 분실물을 가져가는 상황(분실물을 주인이 가져갔을 수 있지만 주인이 아닌사람이 가져갔을 경우도 의심가능) : picked_up 기록
+                if lapse >= self.move_lapse: #누군가 분실물을 가져가는 상황(분실물을 주인이 가져갔을 수 있지만 주인이 아닌사람이 가져갔을 경우도 의심가능) : picked_up 기록, scene저장
                     if self.picked_up.get(obj_id) is None:
-                        self._save_pickup(obj_id, frame_id, curr_bbox)
+                        self._save_pickup(obj_id, frame_id, curr_bbox) 
+                        self._save_scene(obj_id, curr_bbox, img)
+                        
         
         # 5. 모든 object의 last seen frame 갱신 및 bbox 업데이트
         for obj_id, obj_track in obj.items():
@@ -226,6 +228,9 @@ class abandonedObject:
                 state = self.obj_state[obj_id]['state']
                 if state in [objectState.SUSPECTED, objectState.LOST]:
                     self.obj_state[obj_id]['bbox'] = obj_track[:4]
+                    # box기준 주변 장면을 crop한 numpy형태 image갱신
+                    scene_np = self._numpy_scene(img, obj_track[:4])
+                    self.obj_state[obj_id]['last_crop_np'] = scene_np
 
         # 6. prev_bbox, prev_last_seen 업데이트
         for track in new_track_results:
@@ -452,6 +457,7 @@ class abandonedObject:
             # state = suspected / lost 이면서 picked_up에 저장되어있지 않은 경우( 움직임으로 누군가 가져갔다고 판단되는 경우 )
             if state in [objectState.SUSPECTED, objectState.LOST] and self.picked_up.get(obj_id) is None:
                 self._save_pickup(obj_id)
+                self._numpy2img(obj_id)
 
             self.obj_state.pop(obj_id, None)
             self.prev_bbox.pop(obj_id, None)
