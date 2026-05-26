@@ -210,12 +210,15 @@ class abandonedObject:
                     if state in (objectState.SUSPECTED, objectState.LOST):
                         curr_bbox = belongings[:4]
                         prev_bbox = self.prev_bbox.get(obj_id)
+                        self.obj_state[obj_id]['last_crop_np'] = self._numpy_scene(img, curr_bbox)
                         if prev_bbox is not None:
                             if not self._is_static(curr_bbox, prev_bbox):
                                 if self.obj_state[obj_id]['move_start'] is None:
                                     self.obj_state[obj_id]['move_start'] = frame_id
                                 elif frame_id - self.obj_state[obj_id]['move_start'] >= self.move_threshold:
-                                    self._record_pickup(obj_id, frame_id, curr_bbox)
+                                    if self.picked_up.get(obj_id) is None:
+                                        self._record_pickup(obj_id, frame_id, curr_bbox)
+                                        self._save_scene(obj_id, curr_bbox, img)
                             else:
                                 self.obj_state[obj_id]['move_start'] = None
                 else:
@@ -236,13 +239,16 @@ class abandonedObject:
             if state in (objectState.SUSPECTED, objectState.LOST):
                 curr_bbox = obj_track[:4]
                 prev_bbox = self.prev_bbox.get(obj_id)
+                self.obj_state[obj_id]['last_crop_np'] = self._numpy_scene(img, curr_bbox)
 
                 if prev_bbox is not None:
                     if not self._is_static(curr_bbox, prev_bbox):
                         if self.obj_state[obj_id]['move_start'] is None:
                             self.obj_state[obj_id]['move_start'] = frame_id
                         elif frame_id - self.obj_state[obj_id]['move_start'] >= self.move_threshold:
-                            self._record_pickup(obj_id, frame_id)
+                            if self.picked_up.get(obj_id) is None:
+                                self._record_pickup(obj_id, frame_id, curr_bbox)
+                                self._save_scene(obj_id, curr_bbox, img)
                     else:
                         self.obj_state[obj_id]['move_start'] = None
 
@@ -280,10 +286,11 @@ class abandonedObject:
                 self.obj_state[obj_id]['bbox'] = curr_bbox # suspected로 변경하였으므로 bbox도 갱신해주어야한다
                 
         
-        # 7. 모든 object의 last seen frame 갱신 
+        # 7. 모든 object의 last seen frame 갱신
         for obj_id in obj:
             if obj_id in self.obj_state:
                 self.obj_state[obj_id]['last_seen'] = frame_id
+                self.obj_state[obj_id]['last_seen(time)'] = time.strftime('%Y-%m-%d %H:%M:%S')
                 # last seen 시간 정보 기록 
                 self.obj_state[obj_id]['last_seen(time)'] = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
 
@@ -367,6 +374,8 @@ class abandonedObject:
                     'state' : objectState.UNASSIGNED,
                     'bbox' : None,
                     'last_seen' : frame_id,
+                    'last_seen(time)' : time.strftime('%Y-%m-%d %H:%M:%S'),
+                    'last_crop_np' : None,
                     'separated_start' : None,
                     'suspected_start' : None,
                     'lost_start' : None,
@@ -585,7 +594,9 @@ class abandonedObject:
             # 아니면 어쩔 수 없고 누가 가져갔으면 ㄴㅇㅅ
             state = obj_info.get('state')
             if state in [objectState.SUSPECTED, objectState.LOST]:
-                self._record_pickup(obj_id)
+                if self.picked_up.get(obj_id) is None:
+                    self._record_pickup(obj_id)
+                    self._numpy2img(obj_id)
 
             self.obj_state.pop(obj_id, None)
             self.obj_owner.pop(obj_id, None)
@@ -694,9 +705,103 @@ class abandonedObject:
         return False
 
 
+    def _save_scene(self, obj_id, bbox, img):
+        timestamp = datetime.now()
+        folder_path = self.scene_folder / f'{timestamp.year}-{timestamp.month}-{timestamp.day}' / str(timestamp.hour)
+        os.makedirs(folder_path, exist_ok=True)
+        file_path = str(folder_path / f'{obj_id}.jpg')
+
+        img_h, img_w = img.shape[:2]
+        box_x1 = round(bbox[0] * img_w)
+        box_y1 = round(bbox[1] * img_h)
+        box_x2 = round(bbox[2] * img_w)
+        box_y2 = round(bbox[3] * img_h)
+
+        side = round(max(box_x2 - box_x1, box_y2 - box_y1) * 5)
+        cx = (box_x1 + box_x2) // 2
+        cy = (box_y1 + box_y2) // 2
+        crop_x1 = max(0, cx - side // 2)
+        crop_y1 = max(0, cy - side // 2)
+        crop_x2 = min(img_w, cx + side // 2)
+        crop_y2 = min(img_h, cy + side // 2)
+
+        crop = img[crop_y1:crop_y2, crop_x1:crop_x2].copy()
+
+        timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        font_scale = max(0.4, crop.shape[1] / 600)
+        thickness = max(1, int(font_scale * 2))
+        (text_w, text_h), _ = cv2.getTextSize(timestamp_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+        x = crop.shape[1] - text_w - int(crop.shape[1] * 0.02)
+        y = text_h + int(crop.shape[0] * 0.02)
+        cv2.putText(crop, timestamp_str, (x, y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), thickness)
+        cv2.imwrite(file_path, crop)
+
+    def _save_obj(self, obj_id, img, bbox):
+        folder_path = self.obj_imgs_folder
+        os.makedirs(folder_path, exist_ok=True)
+        image_path = str(folder_path / f'{obj_id}.jpg')
+
+        img_h, img_w = img.shape[:2]
+        x1 = int(bbox[0] * img_w)
+        y1 = int(bbox[1] * img_h)
+        x2 = int(bbox[2] * img_w)
+        y2 = int(bbox[3] * img_h)
+
+        crop = img[y1:y2, x1:x2]
+        cv2.imwrite(image_path, crop)
+
+    def _numpy2img(self, obj_id):
+        obj_info = self.obj_state.get(obj_id)
+        if obj_info is None:
+            return
+
+        crop = obj_info.get('last_crop_np')
+        if crop is None:
+            return
+
+        timestamp_str = obj_info.get('last_seen(time)')
+        if timestamp_str is None:
+            return
+
+        dt = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+        folder_path = self.scene_folder / f'{dt.year}-{dt.month}-{dt.day}' / str(dt.hour)
+        os.makedirs(folder_path, exist_ok=True)
+        file_path = str(folder_path / f'{obj_id}.jpg')
+
+        font_scale = max(0.4, crop.shape[1] / 600)
+        thickness = max(1, int(font_scale * 2))
+        (text_w, text_h), _ = cv2.getTextSize(timestamp_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+        x = crop.shape[1] - text_w - int(crop.shape[1] * 0.02)
+        y = text_h + int(crop.shape[0] * 0.02)
+        cv2.putText(crop, timestamp_str, (x, y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 0), thickness)
+        cv2.imwrite(file_path, crop)
+
+    def _numpy_scene(self, img, bbox):
+        '''
+            SUSPECTED / LOST state인 object의 scene을 numpy 형태로 obj_state에 저장
+            : _clean 대상이 되었을때 scene을 크롭하면 이미 없어진 상태의 장면이 저장될 가능성이 크다
+              -> 마지막으로 보인 장면을 numpy 형태로 저장 후 해당 상태의 object가 clean 대상이 될 시 image로 변환하여 저장
+        '''
+        img_h, img_w = img.shape[:2]
+        box_x1 = round(bbox[0] * img_w)
+        box_y1 = round(bbox[1] * img_h)
+        box_x2 = round(bbox[2] * img_w)
+        box_y2 = round(bbox[3] * img_h)
+
+        side = round(max(box_x2 - box_x1, box_y2 - box_y1) * 5)
+        cx = (box_x1 + box_x2) // 2
+        cy = (box_y1 + box_y2) // 2
+        crop_x1 = max(0, cx - side // 2)
+        crop_y1 = max(0, cy - side // 2)
+        crop_x2 = min(img_w, cx + side // 2)
+        crop_y2 = min(img_h, cy + side // 2)
+
+        crop = img[crop_y1:crop_y2, crop_x1:crop_x2].copy()
+        return crop
+
     def _record_pickup(self, obj_id, frame_id=None, bbox=None):
         obj_info = self.obj_state.get(obj_id, {})
-                
+
         self.picked_up[obj_id] = {
             'class'     : obj_info.get('class'),
             'state'     : obj_info.get('state'),
