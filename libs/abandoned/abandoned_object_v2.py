@@ -181,12 +181,13 @@ class abandonedObject:
                     # lapse가 일정 frame을 넘어가면 분실물일 확률을 계산
                     if susp_lapse >= self.suspected_threshold:
                         p_lost = self._calc_p_lost(scores)
-                        # thresh 이상 => SUSEPCTED로 갱신 및 csv 기록 
+                        # thresh 이상 => SUSEPCTED로 갱신
                         if p_lost >= self.p_lost_threshold:
                             if obj_info['suspected_start'] is None: 
                                 obj_info['state'] = objectState.SUSPECTED
                                 obj_info['suspected_start'] = frame_id
                                 self.logger.save(obj_id, obj_info)
+                                self._save_objImg(img, obj_id, curr_bbox)
                                 print(f'{obj_id} : turn SUSPECTED')
 
                     susp_start = obj_info['suspected_start']
@@ -588,7 +589,7 @@ class abandonedObject:
 
         cv2.imwrite(file_path, crop)
 
-    def _save_obj(self, obj_id, img, bbox):
+    def _save_objImg(self, img, obj_id, bbox):
         '''
             obj-imgs폴더에 
             bbox crop 한 jpg 저장
@@ -606,7 +607,6 @@ class abandonedObject:
 
         crop = img[y1:y2, x1:x2]
         cv2.imwrite(image_path, crop)
-
 
     def _numpy_scene(self, img, bbox):
         '''
