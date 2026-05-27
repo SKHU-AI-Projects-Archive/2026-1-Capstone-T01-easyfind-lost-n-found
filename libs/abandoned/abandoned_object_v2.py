@@ -17,23 +17,38 @@ class objectState(Enum):
     LOST = 3
 
 class objLogger:
-    def __init__(self, pipename, folder):
-        self.folder = Path(folder) / pipename
-        os.makedirs(self.folder, exist_ok=True)
+    def __init__(self, pipename, logs_folder):
+        self.base_folder = Path(logs_folder) / pipename
+        self.file = None
+        self.writer = None
+        self.current_date = None
 
-        self.csv_path = str(self.folder / 'info.csv')
-        self.file = open(self.csv_path, 'w', newline='', encoding='utf-8')
+    def _open_for_date(self, date_str):
+        if self.current_date == date_str:
+            return
+        if self.file:
+            self.file.close()
+        folder = self.base_folder / date_str
+        os.makedirs(folder, exist_ok=True)
+        csv_path = str(folder / 'info.csv')
+        is_new = not os.path.exists(csv_path)
+        self.file = open(csv_path, 'a', newline='', encoding='utf-8')
         self.writer = csv.writer(self.file)
-        self.writer.writerow(['obj_id', 'class', 'time'])
+        if is_new:
+            self.writer.writerow(['obj_id', 'class', 'time'])
+        self.current_date = date_str
 
     def save(self, obj_id, obj_info):
+        date_str = datetime.now().strftime('%Y-%m-%d')
+        self._open_for_date(date_str)
         cls = obj_info.get('class')
         timestamp = obj_info.get('last_seen(time)')
-        row = [obj_id, cls, timestamp]
-        self.writer.writerow(row)
+        self.writer.writerow([obj_id, cls, timestamp])
+        self.file.flush()
 
     def close(self):
-        self.file.close()
+        if self.file:
+            self.file.close()
 
 class abandonedObject:
     def __init__(self, config):
@@ -85,10 +100,11 @@ class abandonedObject:
 
         self.scene_folder = Path(__file__).parent / 'scenes'
         self.obj_imgs_folder = Path(__file__).parent / 'obj-imgs'
+        self.logs_folder = Path(__file__).parent / 'logs'
 
         # logger
         self.pipename = config.get('name', 'default')
-        self.logger = objLogger(self.pipename, self.obj_imgs_folder)
+        self.logger = objLogger(self.pipename, self.logs_folder)
 
     def close(self):
         self.logger.close()
@@ -559,7 +575,7 @@ class abandonedObject:
         day = timestamp.day
         hour = timestamp.hour
 
-        folder_path = self.scene_folder / f'{year}-{month}-{day}' / str(hour)
+        folder_path = self.scene_folder / self.pipename / f'{year}-{month}-{day}' / str(hour)
         os.makedirs(folder_path, exist_ok=True)
         file_path = str(folder_path / f"{obj_id}.jpg")
 
@@ -595,7 +611,7 @@ class abandonedObject:
             bbox crop 한 jpg 저장
         '''
         # 1. bbox를 crop
-        folder_path = self.obj_imgs_folder
+        folder_path = self.obj_imgs_folder / self.pipename
         os.makedirs(folder_path, exist_ok=True)
         image_path = str(folder_path / f'{obj_id}.jpg')
 
@@ -653,7 +669,7 @@ class abandonedObject:
         day = dt.day
         hour = dt.hour
 
-        folder_path = self.scene_folder / f'{year}-{month}-{day}' / str(hour)
+        folder_path = self.scene_folder / self.pipename / f'{year}-{month}-{day}' / str(hour)
         os.makedirs(folder_path, exist_ok=True)
         file_path = str(folder_path / f'{obj_id}.jpg')
 
