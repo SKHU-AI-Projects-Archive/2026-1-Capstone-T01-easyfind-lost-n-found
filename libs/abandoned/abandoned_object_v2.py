@@ -181,11 +181,12 @@ class abandonedObject:
                     # lapse가 일정 frame을 넘어가면 분실물일 확률을 계산
                     if susp_lapse >= self.suspected_threshold:
                         p_lost = self._calc_p_lost(scores)
-                        # thresh 이상 => SUSEPCTED로 갱신
+                        # thresh 이상 => SUSEPCTED로 갱신 및 csv 기록 
                         if p_lost >= self.p_lost_threshold:
                             if obj_info['suspected_start'] is None: 
                                 obj_info['state'] = objectState.SUSPECTED
                                 obj_info['suspected_start'] = frame_id
+                                self.logger.save(obj_id, obj_info)
                                 print(f'{obj_id} : turn SUSPECTED')
 
                     susp_start = obj_info['suspected_start']
@@ -245,8 +246,11 @@ class abandonedObject:
         results = []
         for track in new_track_results:
             track_id = track[4]
-            state = self.obj_state[track_id].get('state') if track_id in self.obj_state else None
-            results.append(list(track) + [state.name if state else None])
+            obj_info = self.obj_state.get(track_id)
+            state = obj_info.get('state') if obj_info else None
+            owner_scores = obj_info.get('owner_scores', {}) if obj_info else {}
+            max_score = max(owner_scores.values(), default=0.0)
+            results.append(list(track) + [state.name if state else None, round(max_score, 2)])
 
         return results
     
