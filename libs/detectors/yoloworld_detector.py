@@ -1,6 +1,7 @@
 import time
 import math
 import torch
+import numpy as np
 
 from .base_detector import BaseDetector
 import ultralytics
@@ -32,55 +33,52 @@ class YOLOWorldDetector(BaseDetector):
         else:
             print(f"[YoloDetector] Loaded {self.weights_path}, detecting all classes")
 
-        print(f"[YOLO World] Initialized.")
+        # GPU Warm-up
+        print(f"[YOLO World] Warming up GPU...")
+        dummy_img = np.zeros((self.imgsz, self.imgsz, 3), dtype=np.uint8)
+        self.model.predict(dummy_img, imgsz=self.imgsz, verbose=False)
+        
+        print(f"[YOLO World] Initialized and Warmed up.")
 
 
     def detect(self, img):
         """
-        img를 넣으면 yolov8s-world.pth를 사용하여 yolo-world detect가 수행된다.
-
-        Returns:
-            x1, y1, x2, y2, : bounding box의 각 꼭짓점의 좌표
-            0.95, : confidence score
-            0.0 : class_id
+        Detects objects in the given image using YOLO World.
         """
         if img is None:
             return []
         
         h, w = img.shape[:2]
 
-
-        # model = ultralytics.YOLOWorld("yolov8s-world.pt") # detect 메서드에서 set_classes를 수행할 경우, 10ms 정도 느려지는 문제 발생 -> 자연어를 한 번만 처리해도 될 것을 img 한 장 마다 수행하기 때문에 느려지는 것으로 판단
-        # -> __init__ 내부에 넣어 처음 YOLOWorld가 선언될 때만 실행되도록 한다.
-        # super().model.set_classes([insert_class])
-        # self.model.set_classes(["person"])
-
+        # Use positional argument for consistency with other detectors
+        # and to ensure ultralytics treats it as a single image.
         results = self.model.predict(
-            source=img, conf = self.conf, iou = self.iou, imgsz = self.imgsz, verbose = True)
+            img, 
+            conf=self.conf, 
+            iou=self.iou, 
+            imgsz=self.imgsz, 
+            verbose=False # Set to False to reduce console noise
+        )
 
-        for result in results:
-            boxes = result.boxes   
-            probs = result.probs
-
-        bbox_list = boxes.xyxy.tolist()
-        conf_score_list = boxes.conf.tolist()
-        class_id_list = boxes.cls.tolist()
+        if not results or len(results[0].boxes) == 0:
+            return []
 
         detection_result = []
-        for box, conf, cls in zip(bbox_list, conf_score_list, class_id_list):
-            x1, y1, x2, y2 = box
-            confidence_score = float(conf)
-            class_id = int(cls)
+        # Process only the first result since we passed a single image
+        for box in results[0].boxes:
+            # Extract coordinates, confidence and class id
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            conf = float(box.conf[0])
+            cls_id = int(box.cls[0])
 
-            # bbox point normalization
-            x1 = max(0.0, min(x1 / w, 1.0))
-            y1 = max(0.0, min(y1 / h, 1.0))
-            x2 = max(0.0, min(x2 / w, 1.0))
-            y2 = max(0.0, min(y2 / h, 1.0))
+            # bbox point normalization to [0.0, 1.0]
+            nx1 = max(0.0, min(x1 / w, 1.0))
+            ny1 = max(0.0, min(y1 / h, 1.0))
+            nx2 = max(0.0, min(x2 / w, 1.0))
+            ny2 = max(0.0, min(y2 / h, 1.0))
 
-            # if you want to get detection result, uncomment this two code
-            detection_result.append([x1, y1, x2, y2, confidence_score, int(class_id)])
+            detection_result.append([nx1, ny1, nx2, ny2, conf, cls_id])
 
-        return detection_result # format : [[x1, y1, x2, y2, 0.95, 0.0]]
+        return detection_result
         # return [[x1, y1, x2, y2, confidence_score, class_id]]
     

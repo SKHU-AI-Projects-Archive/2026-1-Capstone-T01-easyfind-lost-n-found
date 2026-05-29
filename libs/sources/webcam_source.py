@@ -10,7 +10,7 @@ class WebcamSource(BaseSource):
         self.height = int(config.get("height", 1080))
         self.fps = float(config.get("fps", 30))
 
-        self.cap = cv2.VideoCapture(self.device_index, cv2.CAP_DSHOW)
+        self.cap = cv2.VideoCapture(self.device_index, cv2.CAP_ANY)
         if not self.cap.isOpened():
             raise RuntimeError(f"Cannot open camera: {self.device_index}")
 

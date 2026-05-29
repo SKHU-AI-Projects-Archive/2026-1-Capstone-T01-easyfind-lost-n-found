@@ -75,8 +75,10 @@ class SharedMemoryReader:
         frame_bytes = int(np.prod(shape) * dtype.itemsize)
         offset = metadata['index'] * frame_bytes
 
+        # Create a view first
         shared_img = np.ndarray(shape, dtype=dtype, buffer=self.shm.buf, offset=offset)
-        return shared_img
+        # Return a copy to ensure the data doesn't change if the writer overwrites this buffer index
+        return shared_img.copy()
 
     def close(self):
         if self.shm:
