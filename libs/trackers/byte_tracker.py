@@ -182,21 +182,24 @@ class STrack:
 
 
 class BYTETracker(BaseTracker):
-    def __init__(self, config, frame_rate=30):
+    def __init__(self, config):
         self.tracked_stracks = []  # type: list[STrack]
         self.lost_stracks = []  # type: list[STrack]
         self.removed_stracks = []  # type: list[STrack]
 
         self.frame_id = 0
+        self.fps = config.get('fps', 30)
         #self.config = config
         self.track_thresh = config.get('track_thresh', 0.5)
         self.det_thresh = self.track_thresh + 0.1
         self.track_buffer = config.get('track_buffer', 30)
-        self.buffer_size = int(frame_rate / 30.0 * self.track_buffer)
+        self.buffer_size = int(self.fps / 30.0 * self.track_buffer)
         self.crowd = config.get('crowd', False)
         self.match_thresh = config.get('match_thresh', 0.8)
         self.max_time_lost = self.buffer_size
         self.kalman_filter = KalmanFilter()
+
+        self.classes = config.get('classes', [])
         # 확인용
         print('[BYTE Tracker] Initialized')
 
@@ -385,8 +388,10 @@ class BYTETracker(BaseTracker):
         '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
         detections = [detections[i] for i in u_detection]
         dists = matching.iou_distance(unconfirmed, detections)
-        if not self.crowd: # 군중밀집 상황에서는 confidence score를 이용하지 않는 fuse_score를 이용X
-            dists = matching.fuse_score(dists, detections)
+        # fuse_score 제거: low confidence 환경에서 fuse_cost = 1 - (iou_sim * det_score)가
+        # thresh(0.7)를 넘어 unconfirmed track이 영구적으로 매칭 불가해지는 문제 방지
+        # if not self.crowd:
+        #     dists = matching.fuse_score(dists, detections)
         matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
         for itracked, idet in matches:
             unconfirmed[itracked].update(detections[idet], self.frame_id)
@@ -439,13 +444,16 @@ class BYTETracker(BaseTracker):
         output_list = []
         for strack in output_stracks:
             x1, y1, x2, y2 = strack.tlbr
+            cls_id = int(strack.class_id)
+            cls_name = self.classes[cls_id] if cls_id < len(self.classes) else cls_id
+
             output_list.append([
                 float(x1 / img_w),
                 float(y1 / img_h),
                 float(x2 / img_w),
                 float(y2 / img_h),
                 int(strack.track_id),
-                int(strack.class_id)
+                cls_name
             ])
 
         return output_list

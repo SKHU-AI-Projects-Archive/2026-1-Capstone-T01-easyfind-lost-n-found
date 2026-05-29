@@ -6,23 +6,25 @@ import queue
 from core.memory.shared_mem import SharedMemoryReader
 from libs.handlers import build_handler
 
-
 class OutputAggregator(mp.Process):
-    def __init__(self, config, result_queue, shm_name):
+    def __init__(self, config, result_queue):
         super().__init__()
         self.config = config
         self.queue = result_queue
-        self.shm_name = shm_name
         self.mode = config.get('mode', 'sync')
         self.fps = config.get('target_fps', 30)
         self.running = True
         self.handlers = []
+        self.readers = {}
+
+    def _get_reader(self, shm_name):
+        if shm_name not in self.readers:
+            self.readers[shm_name] = SharedMemoryReader(shm_name)
+        return self.readers[shm_name]
 
     def run(self):
-        print(f"[Aggregator] Started. Mode: {self.mode}")
+        print(f"[Aggregator] Started. Multi-SHM Separate Window Mode.")
         self.lock = threading.Lock()
-        self.reader = SharedMemoryReader(self.shm_name)
-
         for h_cfg in self.config.get('handlers', []):
             if h_cfg.get('enable'):
                 try:
@@ -41,21 +43,28 @@ class OutputAggregator(mp.Process):
             print("[Aggregator] Stopping...")
             for h in self.handlers:
                 h.release()
-            self.reader.close()
+            for r in self.readers.values():
+                r.close()
             cv2.destroyAllWindows()
 
     def _run_sync(self):
         while self.running:
             try:
                 data = self.queue.get(timeout=1.0)
+                shm_name = data.get('shm_name') # executor.py에서 복사해준 최상위 키 사용
+                if not shm_name: continue
+                
+                try:
+                    reader = self._get_reader(shm_name)
+                    for h in self.handlers:
+                        h.handle(data, reader)
+                except FileNotFoundError as e:
+                    # 카메라 소스가 아직 준비되지 않았을 때 시스템이 죽지 않도록 예외 처리
+                    continue
 
-                for h in self.handlers:
-                    h.handle(data, self.reader)
-
-                if cv2.waitKey(1) == ord('q'):
+                if cv2.waitKey(1) == ord('q'): 
                     self.running = False
-
-            except queue.Empty:
+            except queue.Empty: 
                 continue
             except Exception as e:
                 print(f"[Aggregator] Error: {e}")
@@ -64,30 +73,32 @@ class OutputAggregator(mp.Process):
     def _run_async(self):
         self.latest = None
         threading.Thread(target=self._recv_thread, daemon=True).start()
-
         interval = 1.0 / self.fps
-
         while self.running:
             start_time = time.time()
-
-            with self.lock:
+            with self.lock: 
                 data = self.latest
-
+            
             if data:
-                for h in self.handlers:
-                    h.handle(data, self.reader)
-
-            elapsed = time.time() - start_time
-            wait_ms = max(1, int((interval - elapsed) * 1000))
-
-            if cv2.waitKey(wait_ms) == ord('q'):
+                shm_name = data.get('shm_name')
+                if shm_name:
+                    try:
+                        reader = self._get_reader(shm_name)
+                        for h in self.handlers: 
+                            h.handle(data, reader)
+                    except FileNotFoundError:
+                        pass
+            
+            if cv2.waitKey(1) == ord('q'): 
                 self.running = False
+            
+            time.sleep(max(0, interval - (time.time() - start_time)))
 
     def _recv_thread(self):
         while self.running:
             try:
                 data = self.queue.get()
-                with self.lock:
+                with self.lock: 
                     self.latest = data
-            except:
+            except: 
                 break
