@@ -1,0 +1,78 @@
+setting:
+  shared_memory_name: "exp_dummy"
+
+source:
+  type: "VideoSource"
+  video_path: "assets/videos/E05_001.mp4"
+  loop: False
+  fps: 30
+
+pipelines:
+  - name    : "DummyPipeline"
+    enable  : true
+    gpu_id  : 0
+
+    detector:
+      type          : "Yolo11Detector"
+      weights_path  : assets/weights/yolo11s.pt
+      imgsz         : 1280
+      iou           : 0.7
+      conf          : 0.25
+      classes       : [0, 24, 26]
+
+    tracker:
+      type          : "BYTETracker"
+      track_thresh  : 0.25
+      match_thresh  : 0.8
+      track_buffer  : 30
+      crowd         : True
+      fps           : 30
+      class_ids     : [0, 24, 26]
+      classes       : [person, backpack, handbag]
+
+    abandoned:
+      type                        : "abandonedObjectV2"
+      fps                         : 30
+
+      # 거리 / 정지 판단
+      dist_threshold              : 0.07          # person-object 근접 판단 거리 (정규화 좌표)
+      static_dist_threshold       : 0.0002         # bbox 중심 이동 거리 임계값 (정지 판단, 정규화 좌표)
+      iou_threshold               : 0.9           # 정지 판단 IoU 임계값
+
+      # 상태 전환 임계값
+      suspected_threshold_min     : 15            # STATIC -> SUSPECTED 전환까지 최소 시간 (분)
+      lost_threshold_min          : 15            # SUSPECTED -> LOST 전환까지 최소 시간 (분)
+      p_lost_threshold            : 0.75          # SUSPECTED 전환 기준 p_lost 값
+
+      # owner score
+      alpha_per_sec               : 0.01          # 근접 시 owner score 상승률 (/초)
+      beta_per_sec                : 0.03          # 이탈 시 owner score 하강률 (/초)
+
+      # ID 복구
+      restore_threshold           : 0.7           # ID 복구 최소 score
+
+      # 정리 주기
+      clean_threshold_sec         : 30            # obj_state 삭제 기준 (마지막 감지 후 경과 초)
+      prev_clean_threshold_sec    : 1             # prev_bbox 삭제 기준 (마지막 감지 후 경과 초)
+
+      # owner score 가중치 (추후 모션벡터 도입 시 사용)
+      w_dist                      : 0.6
+      w_vector                    : 0.4
+
+output:
+  mode        : "sync"
+  target_fps  : 30
+
+  handlers:
+    - type                : "ScreenHandler"
+      enable              : true
+      window_name         : "MOT Monitor"
+      view_width          : 960
+      view_height         : 540
+      draw_detections     : true
+      draw_tracks         : true
+      show_info           : true
+    - type                : "FileLogHandler"
+      enable              : true
+      output_dir          : "./logs"
+      filename            : "tracking_data.csv"
