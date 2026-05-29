@@ -27,6 +27,7 @@ class PipelineExecutor(mp.Process):
             self.config['abandoned']['name'] = self.name_tag
 
             abandoned = build_abandoned(self.config['abandoned'])
+            print(abandoned)
             print(f"[{self.name_tag}] PID: {self.pid} Initialized.")
         except Exception as e:
             print(f"[{self.name_tag}] Build Failed: {e}")
