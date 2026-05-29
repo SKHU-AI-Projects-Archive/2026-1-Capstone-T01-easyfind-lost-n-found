@@ -22,14 +22,14 @@ sources:
     buffer_size: 30
     loop : true
 
-  - id: "cam_2"
-    type: "WebcamSource"
-    device_index: 1
-    shared_memory_name: "shm_cam_2"
-    width: 640
-    height: 480
-    fps: 30
-    buffer_size: 30
+  # - id: "cam_2"
+  #   type: "WebcamSource"
+  #   device_index: 1
+  #   shared_memory_name: "shm_cam_2"
+  #   width: 640
+  #   height: 480
+  #   fps: 30
+  #   buffer_size: 30
 
 pipelines:
   - name: "Office_Cam"
@@ -112,45 +112,45 @@ pipelines:
       iou_threshold : 0.75
       fps: 30  
 
-  - name: "Office02_Cam"
-    source_id: "cam_2"
-    enable: true
-    gpu_id: 0
+  # - name: "Office02_Cam"
+  #   source_id: "cam_2"
+  #   enable: true
+  #   gpu_id: 0
 
-    detector:
-      type: "YOLOWorldDetector"
-      weights_path: assets/weights/yolov8l-worldv2.pt
-      imgsz: 640
-      iou: 0.7
-      conf: 0.5
-      classes: ["person", "bag", "laptop", "keyboard", "mouse"]
+  #   detector:
+  #     type: "YOLOWorldDetector"
+  #     weights_path: assets/weights/yolov8l-worldv2.pt
+  #     imgsz: 640
+  #     iou: 0.7
+  #     conf: 0.5
+  #     classes: ["person", "bag", "laptop", "keyboard", "mouse"]
       
-    tracker:
-      type: "BYTETracker"
-      track_thresh : 0.5
-      match_thresh : 0.8
-      track_buffer : 30
-      crowd : false
-      fps: 30
-      classes: ["person", "bag", "laptop", "keyboard", "mouse"]
+  #   tracker:
+  #     type: "BYTETracker"
+  #     track_thresh : 0.5
+  #     match_thresh : 0.8
+  #     track_buffer : 30
+  #     crowd : false
+  #     fps: 30
+  #     classes: ["person", "bag", "laptop", "keyboard", "mouse"]
 
-    abandoned:
-      type: "abandonedObject"
-      dist_threshold : 0.08
-      static_dist_threshold : 0.01
+  #   abandoned:
+  #     type: "abandonedObject"
+  #     dist_threshold : 0.08
+  #     static_dist_threshold : 0.01
 
-      suspect_threshold_min : 15
-      lost_threshold_min : 15
-      unassigned_threshold_min : 5
+  #     suspect_threshold_min : 15
+  #     lost_threshold_min : 15
+  #     unassigned_threshold_min : 5
 
-      clean_threshold_sec : 3
-      prev_clean_threshold_sec : 2
+  #     clean_threshold_sec : 3
+  #     prev_clean_threshold_sec : 2
 
-      score_threshold : 0.7
-      restore_threshold : 0.7
-      owner_frame_threshold : 30
-      iou_threshold : 0.75
-      fps: 30      
+  #     score_threshold : 0.7
+  #     restore_threshold : 0.7
+  #     owner_frame_threshold : 30
+  #     iou_threshold : 0.75
+  #     fps: 30      
 
 output:
   mode: "sync"
