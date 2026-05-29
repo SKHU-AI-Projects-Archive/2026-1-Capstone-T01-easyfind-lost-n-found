@@ -22,6 +22,10 @@ class PipelineExecutor(mp.Process):
             reader = SharedMemoryReader(self.shm_name)
             detector = build_detector(self.config['detector'])
             tracker = build_tracker(self.config['tracker'])
+            
+            # pipename을 abandoned name에 주입 ( abandoned_object에서 get('name')을 통해 pipename을 받을 수 있다 )
+            self.config['abandoned']['name'] = self.name_tag
+
             abandoned = build_abandoned(self.config['abandoned'])
             print(f"[{self.name_tag}] PID: {self.pid} Initialized.")
         except Exception as e:
@@ -44,6 +48,8 @@ class PipelineExecutor(mp.Process):
 
                 abandoned_tracks = abandoned.update(meta['frame_id'], tracks)
 
+                abandoned_tracks = abandoned.update(meta['frame_id'], tracks, img)
+
                 result_package = {
                     'pipe_name': self.name_tag,
                     'frame_id': meta['frame_id'],
@@ -60,6 +66,7 @@ class PipelineExecutor(mp.Process):
             print(f"[{self.name_tag}] Runtime Error: {e}")
         finally:
             reader.close()
+            abandoned.close()
             print(f"[{self.name_tag}] Stopped.")
 
     def stop(self):

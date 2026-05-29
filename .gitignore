@@ -210,3 +210,7 @@ logs/
 
 *.jpg
 *.webm
+*.mp4
+*.pt
+*.json
+*.png
