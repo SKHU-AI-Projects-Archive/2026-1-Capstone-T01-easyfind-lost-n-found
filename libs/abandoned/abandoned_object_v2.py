@@ -611,7 +611,8 @@ class abandonedObject:
             bbox crop 한 jpg 저장
         '''
         # 1. bbox를 crop
-        folder_path = self.obj_imgs_folder / self.pipename
+        date_str = datetime.now().strftime('%Y-%m-%d')
+        folder_path = self.obj_imgs_folder / self.pipename / date_str
         os.makedirs(folder_path, exist_ok=True)
         image_path = str(folder_path / f'{obj_id}.jpg')
 
