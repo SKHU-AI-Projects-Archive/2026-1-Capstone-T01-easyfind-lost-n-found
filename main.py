@@ -1,13 +1,41 @@
 import multiprocessing as mp
 import yaml
 import argparse
+import shutil
+from datetime import datetime, timedelta
+from pathlib import Path
 
 from core.sources.streamer import SourceStreamer
 from core.pipelines.executor import PipelineExecutor
 from core.outputs.aggregator import OutputAggregator
 
+def cleanup_abandoned_files(days=10):
+    cutoff = datetime.now() - timedelta(days=days)
+    abandoned = Path(__file__).parent / 'libs' / 'abandoned'
+
+    for folder_name in ('scenes', 'logs', 'obj-imgs'):
+        base = abandoned / folder_name
+        if not base.exists():
+            continue
+        for pipename_dir in base.iterdir():
+            if not pipename_dir.is_dir():
+                continue
+            for date_dir in pipename_dir.iterdir():
+                if not date_dir.is_dir():
+                    continue
+                try:
+                    parts = date_dir.name.split('-')
+                    date = datetime(int(parts[0]), int(parts[1]), int(parts[2]))
+                    if date < cutoff:
+                        shutil.rmtree(date_dir)
+                        print(f"[Cleanup] Removed {date_dir}")
+                except (ValueError, IndexError):
+                    continue
+
+
 if __name__ == "__main__":
     mp.set_start_method("spawn")
+    cleanup_abandoned_files(days=7)
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--config", type=str, default="configs/multi_cam.yaml")
     args = parser.parse_args()
