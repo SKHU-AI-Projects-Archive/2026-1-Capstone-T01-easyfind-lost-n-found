@@ -47,8 +47,6 @@ class PipelineExecutor(mp.Process):
                 tracks = tracker.update(dets, img)
                 meta['timing']['tracker'] = time.time() - t0
 
-                abandoned_tracks = abandoned.update(meta['frame_id'], tracks)
-
                 abandoned_tracks = abandoned.update(meta['frame_id'], tracks, img)
 
                 result_package = {
