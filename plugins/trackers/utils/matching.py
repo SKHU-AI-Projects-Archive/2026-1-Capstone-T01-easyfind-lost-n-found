@@ -1,15 +1,29 @@
 # vim: expandtab:ts=4:sw=4
 from __future__ import absolute_import
-# from __future__ import absolute_import
 
-# import cv2
 import numpy as np
 import scipy
-import lap
 from scipy.spatial.distance import cdist
+from scipy.optimize import linear_sum_assignment as _scipy_lsa
 
-from cython_bbox import bbox_overlaps as bbox_ious
 from plugins.trackers.utils import kalman_filter_byte as kalman_filter
+
+
+def _bbox_ious_numpy(atlbrs, btlbrs):
+    """numpy 기반 IoU 계산 (cython_bbox 대체)."""
+    atlbrs = np.ascontiguousarray(atlbrs, dtype=float)
+    btlbrs = np.ascontiguousarray(btlbrs, dtype=float)
+    area_a = (atlbrs[:, 2] - atlbrs[:, 0]) * (atlbrs[:, 3] - atlbrs[:, 1])
+    area_b = (btlbrs[:, 2] - btlbrs[:, 0]) * (btlbrs[:, 3] - btlbrs[:, 1])
+    inter_x1 = np.maximum(atlbrs[:, 0:1], btlbrs[:, 0])
+    inter_y1 = np.maximum(atlbrs[:, 1:2], btlbrs[:, 1])
+    inter_x2 = np.minimum(atlbrs[:, 2:3], btlbrs[:, 2])
+    inter_y2 = np.minimum(atlbrs[:, 3:4], btlbrs[:, 3])
+    inter = np.maximum(0.0, inter_x2 - inter_x1) * np.maximum(0.0, inter_y2 - inter_y1)
+    union = area_a[:, None] + area_b[None, :] - inter
+    return inter / np.maximum(union, 1e-10)
+
+bbox_ious = _bbox_ious_numpy
 # import time
 
 def merge_matches(m1, m2, shape):
@@ -41,10 +55,19 @@ def _indices_to_matches(cost_matrix, indices, thresh):
 
 
 def linear_assignment(cost_matrix, thresh):
+    """lap.lapjv 대체: scipy linear_sum_assignment + cost_limit 필터링."""
     if cost_matrix.size == 0:
         return np.empty((0, 2), dtype=int), tuple(range(cost_matrix.shape[0])), tuple(range(cost_matrix.shape[1]))
-    matches, unmatched_a, unmatched_b = [], [], []
-    cost, x, y = lap.lapjv(cost_matrix, extend_cost=True, cost_limit=thresh)
+    # thresh를 초과하는 비용은 매우 크게 설정 (lap의 extend_cost + cost_limit 동작 모사)
+    ext_cost = np.where(cost_matrix <= thresh, cost_matrix, thresh + 1e-4)
+    row_ind, col_ind = _scipy_lsa(ext_cost)
+    x = np.full(cost_matrix.shape[0], -1, dtype=int)
+    y = np.full(cost_matrix.shape[1], -1, dtype=int)
+    for r, c in zip(row_ind, col_ind):
+        if cost_matrix[r, c] <= thresh:
+            x[r] = c
+            y[c] = r
+    matches = []
     for ix, mx in enumerate(x):
         if mx >= 0:
             matches.append([ix, mx])
@@ -75,9 +98,6 @@ def ious(atlbrs, btlbrs):
 
 
 # deepsort iou match
-
-import numpy as np
-from cython_bbox import bbox_overlaps as bbox_ious
 
 
 def iou(bbox, candidates):

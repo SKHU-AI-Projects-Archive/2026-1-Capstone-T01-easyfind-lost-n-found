@@ -1,0 +1,81 @@
+setting:
+  project_name: "LostFound-Demo"
+
+search:
+  thumb_root: search_results
+
+sources:
+  # 상시 소스 (비디오) — archive 활성으로 과거 프레임을 timestamp 기반 저장
+  - id: "lf_cam0"
+    type: "VideoSource"
+    video_path: assets/videos/Venice-2.mp4
+    shared_memory_name: "shm_lf_cam0"
+    width: 640
+    height: 480
+    fps: 30
+    buffer_size: 30
+    loop: true
+    archive:
+      enable: true
+      root: archives
+      jpeg_interval_sec: 5
+      save_video: false
+
+  # 검색 소스 — 검색 요청 시에만 아카이브 프레임을 공급 (평소 idle)
+  - id: "search_src"
+    type: "ArchiveSource"
+    shared_memory_name: "shm_lf_search"
+    width: 640
+    height: 480
+    root: archives
+
+pipelines:
+  # 상시 파이프라인 (detector→tracker→abandoned)
+  - name: "Live_Cam0"
+    source_id: "lf_cam0"
+    enable: true
+    detector:
+      type: "Yolo11Detector"
+      weights_path: assets/weights/yolo11n.pt
+      imgsz: 640
+      iou: 0.7
+      conf: 0.4
+      device: "cuda:0"
+    tracker:
+      type: "BYTETracker"
+      track_thresh: 0.5
+      match_thresh: 0.8
+      track_buffer: 30
+      fps: 30
+    abandoned:
+      type: "abandonedObject"
+      fps: 30
+      dist_threshold: 0.08
+      suspected_threshold_min: 0.5
+      lost_threshold_min: 1.0
+
+  # 검색 파이프라인 (detector만 — tracker/abandoned 없음)
+  - name: "Search"
+    source_id: "search_src"
+    enable: true
+    thumb_root: search_results
+    detector:
+      type: "YOLOWorldDetector"
+      weights_path: assets/weights/yolov8s-worldv2.pt
+      imgsz: 640
+      conf: 0.25
+      iou: 0.7
+      device: "cuda:0"
+
+output:
+  mode: async
+  target_fps: 30
+  handlers:
+    - type: "WebHandler"
+      enable: true
+      port: 5000
+      view_width: 640
+      view_height: 480
+      draw_detections: true
+      draw_tracks: true
+      show_info: true

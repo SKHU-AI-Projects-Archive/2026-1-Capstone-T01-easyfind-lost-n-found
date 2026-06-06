@@ -1,7 +1,11 @@
 setting:
-  project_name: "Multi-Webcam-Separate-Windows"
+  project_name: "EasyFind-LostAndFound"
+
+search:
+  thumb_root: search_results
 
 sources:
+  # 상시 감시 카메라 (현재 카메라 1대) — archive 활성으로 과거 프레임 timestamp 저장
   - id: "cam_0"
     type: "WebcamSource"
     device_index: 0
@@ -10,16 +14,22 @@ sources:
     height: 480
     fps: 30
     buffer_size: 30
-  - id: "cam_1"
-    type: "WebcamSource"
-    device_index: 1
-    shared_memory_name: "shm_cam_1"
+    archive:
+      enable: true
+      root: archives
+      jpeg_interval_sec: 5
+      save_video: false
+
+  # 소급 검색용 소스 — 검색 요청 시에만 아카이브 프레임 공급 (평소 idle)
+  - id: "search_src"
+    type: "ArchiveSource"
+    shared_memory_name: "shm_search"
     width: 640
     height: 480
-    fps: 30
-    buffer_size: 30
+    root: archives
 
 pipelines:
+  # 상시 분실물 감지 파이프라인
   - name: "Office_Cam"
     source_id: "cam_0"
     enable: true
@@ -31,8 +41,9 @@ pipelines:
       imgsz: 640
       iou: 0.7
       conf: 0.5
+      device: "cuda:0"
       classes: ["person", "bag", "laptop", "keyboard", "mouse"]
-      
+
     tracker:
       type: "BYTETracker"
       track_thresh : 0.5
@@ -46,59 +57,29 @@ pipelines:
       type: "abandonedObject"
       dist_threshold : 0.08
       static_dist_threshold : 0.01
-
       suspected_threshold_min : 15
       lost_threshold_min : 15
       unassigned_threshold_min : 5
-
       clean_threshold_sec : 3
       prev_clean_threshold_sec : 2
-
       score_threshold : 0.7
       restore_threshold : 0.7
       owner_frame_threshold : 30
       iou_threshold : 0.75
       fps: 30
 
-  - name: "Hallway_Cam"
-    source_id: "cam_1"
+  # 소급 검색 파이프라인 (detector만 — tracker/abandoned 없음, 평소 idle)
+  - name: "Search"
+    source_id: "search_src"
     enable: true
-    gpu_id: 0
-
+    thumb_root: search_results
     detector:
       type: "YOLOWorldDetector"
       weights_path: assets/weights/yolov8s-worldv2.pt
       imgsz: 640
+      conf: 0.25
       iou: 0.7
-      conf: 0.5
-      classes: ["person", "bag", "laptop", "keyboard", "mouse"]
-      
-    tracker:
-      type: "BYTETracker"
-      track_thresh : 0.5
-      match_thresh : 0.8
-      track_buffer : 30
-      crowd : false
-      fps: 30
-      classes: ["person", "bag", "laptop", "keyboard", "mouse"]
-
-    abandoned:
-      type: "abandonedObject"
-      dist_threshold : 0.08
-      static_dist_threshold : 0.01
-
-      suspected_threshold_min : 15
-      lost_threshold_min : 15
-      unassigned_threshold_min : 5
-
-      clean_threshold_sec : 3
-      prev_clean_threshold_sec : 2
-
-      score_threshold : 0.7
-      restore_threshold : 0.7
-      owner_frame_threshold : 30
-      iou_threshold : 0.75
-      fps: 30  
+      device: "cuda:0"
 
 output:
   mode: "sync"
@@ -114,7 +95,7 @@ output:
     - type: "WebHandler"
       enable: true
       port: 5000
-      view_width: 1280  
+      view_width: 1280
       view_height: 960
       draw_detections: true
       draw_tracks: true

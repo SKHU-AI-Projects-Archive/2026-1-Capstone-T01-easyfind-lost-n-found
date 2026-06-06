@@ -11,6 +11,10 @@ output:
   target_fps: 30
   handlers: []
 
+# 소급 검색(on-demand) 설정. sources에 type: ArchiveSource 가 있을 때 활성화된다.
+search:
+  thumb_root: search_results   # 검출 썸네일 저장 루트 (WebHandler가 /search_thumb로 서빙)
+
 # ──────────────────────────────────────────
 # 아래 _defaults 섹션은 main.py가 직접 사용하지 않는다.
 # 각 컴포넌트 init에서 config.get(key, default) 로 처리된다.
@@ -22,6 +26,16 @@ _source_defaults:
   height: 1080
   fps: 30
   buffer_size: 60       # 공유메모리 순환버퍼 크기 (프레임 수)
+  # --- WebcamSource 전용 (환경 견고성 옵션) ---
+  fourcc: "MJPG"        # 강제 코덱. 미지원 캠은 ""로 두면 캠 기본 포맷 사용
+  read_retries: 5       # read() 일시 실패 시 재시도 횟수 (USB 글리치 흡수)
+  # --- 소급 검색용 프레임 아카이브 ---
+  archive:
+    enable: false          # 상시 아카이빙 on/off
+    root: "archives"       # 저장 루트 디렉토리
+    jpeg_interval_sec: 5   # 주기 JPEG 저장 간격(초) — 검색의 시간 해상도
+    save_video: false      # 비디오 세그먼트(mp4) 저장 on/off
+    video_segment_sec: 60  # 비디오 세그먼트 길이(초)
 
 _pipeline_defaults:
   enable: true
@@ -34,6 +48,7 @@ _pipeline_defaults:
     iou: 0.7
     conf: 0.5
     classes: null
+    device: null          # "cuda:0"/"cuda:1"/"cpu". null이면 gpu_id 기반 자동(cuda:{gpu_id} 또는 cpu)
 
   tracker:
     type: DummyTracker

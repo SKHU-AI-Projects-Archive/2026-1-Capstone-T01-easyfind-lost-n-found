@@ -3,6 +3,7 @@ from .dummy_source import DummySource
 from .webcam_source import WebcamSource
 from .image_source import FolderImageSource
 from .video_source import VideoSource
+from .archive_source import ArchiveSource
 
 
 

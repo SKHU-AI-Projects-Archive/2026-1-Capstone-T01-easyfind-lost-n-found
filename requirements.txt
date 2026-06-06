@@ -14,9 +14,15 @@ numpy
 scipy
 
 # bytetrack
+# 주의: Windows에서는 lap / cython-bbox 휠 빌드가 실패할 수 있다.
+# plugins/trackers/utils/matching.py가 scipy(linear_sum_assignment) + numpy IoU 폴백을
+# 내장하므로, 설치에 실패하면 생략해도 ByteTracker가 동작한다.
 lap
 cython
 cython-bbox
+
+# 소급 검색 프롬프트 한글→영어 자동 번역
+deep-translator
 
 # frontend
 flask

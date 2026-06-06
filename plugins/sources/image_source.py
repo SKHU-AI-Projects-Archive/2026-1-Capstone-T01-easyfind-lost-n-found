@@ -1,10 +1,9 @@
 import os
 import glob
-import time
 from typing import List
 import cv2
 from natsort import natsort_keygen
-from .base_source import BaseSource
+from .base_source import BaseSource, RatePacer
 
 
 class FolderImageSource(BaseSource):
@@ -34,10 +33,9 @@ class FolderImageSource(BaseSource):
                 f"[FolderImageSource] No image files found in: {self.folder_path} "
                 f"(pattern={self.pattern})"
             )
-        
-        self._period = 1.0 / self.fps
-        self._next_time = time.perf_counter()
-        
+
+        self.pacer = RatePacer(self.fps)
+
         print(
             f"[FolderImageSource] Initialized. files={len(self.files)}, "
             f"fps={self.fps}, loop={self.loop}, sort={self.sort_mode}"
@@ -66,16 +64,9 @@ class FolderImageSource(BaseSource):
         
         return matches
     
-    def _pace(self):
-        now = time.perf_counter()
-        if now < self._next_time:
-            time.sleep(self._next_time - now)
-            now = time.perf_counter()
-        self._next_time = max(self._next_time + self._period, now + self._period * 0.25)
-    
     def read(self):
-        self._pace()
-        
+        self.pacer.wait()
+
         if self.file_idx >= len(self.files):
             if self.loop:
                 self.file_idx = 0

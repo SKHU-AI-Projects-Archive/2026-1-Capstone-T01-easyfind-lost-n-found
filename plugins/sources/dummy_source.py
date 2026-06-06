@@ -1,8 +1,7 @@
 import numpy as np
 import cv2
-import time
 
-from .base_source import BaseSource
+from .base_source import BaseSource, RatePacer
 
 
 class DummySource(BaseSource):
@@ -11,6 +10,7 @@ class DummySource(BaseSource):
         self.width = config.get('width', 1280)
         self.height = config.get('height', 720)
         self.fps = config.get('fps', 30)
+        self.pacer = RatePacer(self.fps)
         self.frame_idx = 0
 
         self.ball_pos = np.array([100.0, 360.0])
@@ -20,7 +20,7 @@ class DummySource(BaseSource):
         print(f"[DummySource] Initialized. Output: {self.width}x{self.height} @ {self.fps}fps")
 
     def read(self):
-        time.sleep(1.0 / self.fps)
+        self.pacer.wait()
 
         frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
 

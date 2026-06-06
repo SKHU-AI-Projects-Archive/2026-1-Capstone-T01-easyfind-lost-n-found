@@ -7,7 +7,7 @@ from core.shared_mem import SharedMemoryReader
 from plugins.handlers import build_handler
 
 class OutputAggregator(mp.Process):
-    def __init__(self, config, result_queue):
+    def __init__(self, config, result_queue, search_ctx=None):
         super().__init__()
         self.config = config
         self.queue = result_queue
@@ -16,6 +16,8 @@ class OutputAggregator(mp.Process):
         self.running = True
         self.handlers = []
         self.readers = {}
+        # 검색 제어 핸들(job_queue/pause/stop) — WebHandler의 Flask 라우트가 사용
+        self.search_ctx = search_ctx
 
     def _get_reader(self, shm_name):
         if shm_name not in self.readers:
@@ -32,6 +34,12 @@ class OutputAggregator(mp.Process):
                 except Exception as e:
                     print(f"[Aggregator] Handler Load Error: {e}")
 
+        # 검색 제어 핸들을 WebHandler(Flask 라우트)에 주입
+        if self.search_ctx:
+            for h in self.handlers:
+                if hasattr(h, 'set_search_context'):
+                    h.set_search_context(self.search_ctx)
+
         try:
             if self.mode == 'async':
                 self._run_async()
@@ -47,16 +55,30 @@ class OutputAggregator(mp.Process):
                 r.close()
             cv2.destroyAllWindows()
 
+    def _dispatch_search(self, data):
+        """검색 결과(kind='search')는 handle_search를 가진 핸들러(WebHandler)로 전달."""
+        for h in self.handlers:
+            if hasattr(h, 'handle_search'):
+                h.handle_search(data)
+
     def _run_sync(self):
         while self.running:
             try:
                 data = self.queue.get(timeout=1.0)
-                # handler가 느릴 경우 쌓인 구형 결과를 폐기하고 최신 결과만 보존
+                if data.get('kind') == 'search':
+                    self._dispatch_search(data)
+                    continue
+                # live: handler가 느릴 경우 쌓인 구형 결과를 폐기하고 최신만 보존
+                # (검색 결과가 섞여 있으면 버리지 않고 그때그때 처리)
                 while True:
                     try:
-                        data = self.queue.get_nowait()
+                        nxt = self.queue.get_nowait()
                     except queue.Empty:
                         break
+                    if nxt.get('kind') == 'search':
+                        self._dispatch_search(nxt)
+                    else:
+                        data = nxt
                 shm_name = data.get('shm_name')
                 if not shm_name: continue
 
@@ -104,7 +126,10 @@ class OutputAggregator(mp.Process):
         while self.running:
             try:
                 data = self.queue.get()
-                with self.lock: 
+                if data.get('kind') == 'search':
+                    self._dispatch_search(data)
+                    continue
+                with self.lock:
                     self.latest = data
-            except: 
+            except:
                 break

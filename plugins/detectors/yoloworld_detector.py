@@ -23,20 +23,21 @@ class YOLOWorldDetector(BaseDetector):
             self.classes = self.classes
         
         self.model = ultralytics.YOLOWorld(self.weights_path)
-        
+        self.model.to(self.device)
+
         # 2. 이미 리스트이므로 []로 감싸지 않고 바로 전달
         if self.classes:
             self.model.set_classes(self.classes)
 
         if self.classes is not None:
-            print(f"[YoloDetector] Loaded {self.weights_path}, detecting classes: {self.classes}")
+            print(f"[YoloDetector] Loaded {self.weights_path} on {self.device}, detecting classes: {self.classes}")
         else:
-            print(f"[YoloDetector] Loaded {self.weights_path}, detecting all classes")
+            print(f"[YoloDetector] Loaded {self.weights_path} on {self.device}, detecting all classes")
 
         # GPU Warm-up
-        print(f"[YOLO World] Warming up GPU...")
+        print(f"[YOLO World] Warming up {self.device}...")
         dummy_img = np.zeros((self.imgsz, self.imgsz, 3), dtype=np.uint8)
-        self.model.predict(dummy_img, imgsz=self.imgsz, verbose=False)
+        self.model.predict(dummy_img, imgsz=self.imgsz, device=self.device, verbose=False)
         
         print(f"[YOLO World] Initialized and Warmed up.")
 
@@ -53,10 +54,11 @@ class YOLOWorldDetector(BaseDetector):
         # Use positional argument for consistency with other detectors
         # and to ensure ultralytics treats it as a single image.
         results = self.model.predict(
-            img, 
-            conf=self.conf, 
-            iou=self.iou, 
-            imgsz=self.imgsz, 
+            img,
+            conf=self.conf,
+            iou=self.iou,
+            imgsz=self.imgsz,
+            device=self.device,
             verbose=False # Set to False to reduce console noise
         )
 

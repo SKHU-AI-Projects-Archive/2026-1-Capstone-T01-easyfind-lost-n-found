@@ -15,12 +15,19 @@ class SharedMemoryWriter:
         try:
             self.shm = shared_memory.SharedMemory(name=shm_name, create=True, size=self.total_size)
         except FileExistsError:
-            try:
-                temp_shm = shared_memory.SharedMemory(name=shm_name)
-                temp_shm.unlink()
-            except:
-                pass
-            self.shm = shared_memory.SharedMemory(name=shm_name, create=True, size=self.total_size)
+            # 이미 존재(이전 실행 잔존/좀비). Windows는 unlink()가 무효라 재생성이 실패하므로
+            # 동일 크기 이상이면 기존 세그먼트를 재사용한다. (POSIX는 부족 시 unlink 후 재생성)
+            existing = shared_memory.SharedMemory(name=shm_name, create=False)
+            if existing.size >= self.total_size:
+                self.shm = existing
+                print(f"[Writer] Reusing existing SharedMemory '{shm_name}' ({existing.size} bytes)")
+            else:
+                existing.close()
+                try:
+                    existing.unlink()
+                except Exception:
+                    pass
+                self.shm = shared_memory.SharedMemory(name=shm_name, create=True, size=self.total_size)
 
         self.cursor = 0
         print(f"[Writer] Initialized SharedMemory '{shm_name}'")

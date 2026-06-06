@@ -15,11 +15,12 @@ class Yolo11Detector(BaseDetector):
         self.classes = config.get('classes', None)
         
         self.model = YOLO(self.weights_path)
-        
+        self.model.to(self.device)
+
         if self.classes is not None:
-            print(f"[YoloDetector] Loaded {self.weights_path}, detecting classes: {self.classes}")
+            print(f"[YoloDetector] Loaded {self.weights_path} on {self.device}, detecting classes: {self.classes}")
         else:
-            print(f"[YoloDetector] Loaded {self.weights_path}, detecting all classes")
+            print(f"[YoloDetector] Loaded {self.weights_path} on {self.device}, detecting all classes")
 
     def detect(self, img):
         if img is None:
@@ -33,6 +34,7 @@ class Yolo11Detector(BaseDetector):
             iou=self.iou,
             imgsz=self.imgsz,
             classes=self.classes,
+            device=self.device,
             verbose=False
         )
         
