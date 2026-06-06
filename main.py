@@ -1,17 +1,18 @@
 import multiprocessing as mp
-import yaml
 import argparse
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from core.sources.streamer import SourceStreamer
-from core.pipelines.executor import PipelineExecutor
-from core.outputs.aggregator import OutputAggregator
+from core.streamer import SourceStreamer
+from core.executor import PipelineExecutor
+from core.aggregator import OutputAggregator
+from core.latest_slot import LatestSlot
+from core.utils.config_loader import load_config
 
 def cleanup_abandoned_files(days=10):
     cutoff = datetime.now() - timedelta(days=days)
-    abandoned = Path(__file__).parent / 'libs' / 'abandoned'
+    abandoned = Path(__file__).parent / 'plugins' / 'abandoned'
 
     for folder_name in ('scenes', 'logs', 'obj-imgs'):
         base = abandoned / folder_name
@@ -40,8 +41,7 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--config", type=str, default="configs/multi_cam.yaml")
     args = parser.parse_args()
 
-    with open(args.config, 'r') as f:
-        config = yaml.safe_load(f)
+    config = load_config(args.config)
 
     print(f">>> Multi-Source System (Separate Windows) Initialize.")
 
@@ -61,7 +61,7 @@ if __name__ == "__main__":
             continue
         
         shm_name = src_meta['shared_memory_name']
-        p_in_q = mp.Queue()
+        p_in_q = LatestSlot()
         if src_id not in multi_pipe_queues: 
             multi_pipe_queues[src_id] = []
         multi_pipe_queues[src_id].append(p_in_q)
@@ -99,6 +99,14 @@ if __name__ == "__main__":
         for p in processes:
             if hasattr(p, 'stop'):
                 p.stop()
+        # PipelineExecutor의 blocking get()이 종료 신호를 받을 수 있도록 None 센티널 전송
+        for queues in multi_pipe_queues.values():
+            for q in queues:
+                try:
+                    q.put(None)
+                except Exception:
+                    pass
+        for p in processes:
             p.terminate()
             p.join()
         print(">>> Shutdown complete.")

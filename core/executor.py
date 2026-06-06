@@ -1,9 +1,9 @@
 import multiprocessing as mp
 import time
-from core.memory.shared_mem import SharedMemoryReader
-from libs.detectors import build_detector
-from libs.trackers import build_tracker
-from libs.abandoned import build_abandoned
+from core.shared_mem import SharedMemoryReader
+from plugins.detectors import build_detector
+from plugins.trackers import build_tracker
+from plugins.abandoned import build_abandoned
 
 class PipelineExecutor(mp.Process):
     def __init__(self, config, input_queue, result_queue, shm_name):
@@ -46,8 +46,6 @@ class PipelineExecutor(mp.Process):
                 t0 = time.time()
                 tracks = tracker.update(dets, img)
                 meta['timing']['tracker'] = time.time() - t0
-
-                abandoned_tracks = abandoned.update(meta['frame_id'], tracks)
 
                 abandoned_tracks = abandoned.update(meta['frame_id'], tracks, img)
 

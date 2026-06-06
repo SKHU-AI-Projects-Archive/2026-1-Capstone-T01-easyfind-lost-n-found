@@ -7,8 +7,8 @@ import torch
 import torch.nn.functional as F
 
 from collections import OrderedDict
-from libs.trackers.utils.kalman_filter_byte import KalmanFilter
-import libs.trackers.utils.matching as matching
+from plugins.trackers.utils.kalman_filter_byte import KalmanFilter
+import plugins.trackers.utils.matching as matching
 from .base_tracker import BaseTracker
 
 class TrackState:

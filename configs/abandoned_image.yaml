@@ -38,7 +38,7 @@ pipelines:
       dist_threshold : 0.15
       static_dist_threshold : 0.01
 
-      suspect_threshold_min : 0.1
+      suspected_threshold_min : 0.1
       lost_threshold_min : 0.1
       unassigned_threshold_min : 0.1
 

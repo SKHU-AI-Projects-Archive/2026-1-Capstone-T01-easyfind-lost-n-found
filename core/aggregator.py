@@ -3,8 +3,8 @@ import threading
 import time
 import cv2
 import queue
-from core.memory.shared_mem import SharedMemoryReader
-from libs.handlers import build_handler
+from core.shared_mem import SharedMemoryReader
+from plugins.handlers import build_handler
 
 class OutputAggregator(mp.Process):
     def __init__(self, config, result_queue):
@@ -51,20 +51,26 @@ class OutputAggregator(mp.Process):
         while self.running:
             try:
                 data = self.queue.get(timeout=1.0)
-                shm_name = data.get('shm_name') # executor.py에서 복사해준 최상위 키 사용
+                # handler가 느릴 경우 쌓인 구형 결과를 폐기하고 최신 결과만 보존
+                while True:
+                    try:
+                        data = self.queue.get_nowait()
+                    except queue.Empty:
+                        break
+                shm_name = data.get('shm_name')
                 if not shm_name: continue
-                
+
                 try:
                     reader = self._get_reader(shm_name)
                     for h in self.handlers:
                         h.handle(data, reader)
-                except FileNotFoundError as e:
+                except FileNotFoundError:
                     # 카메라 소스가 아직 준비되지 않았을 때 시스템이 죽지 않도록 예외 처리
                     continue
 
-                if cv2.waitKey(1) == ord('q'): 
+                if cv2.waitKey(1) == ord('q'):
                     self.running = False
-            except queue.Empty: 
+            except queue.Empty:
                 continue
             except Exception as e:
                 print(f"[Aggregator] Error: {e}")

@@ -1,8 +1,8 @@
 import multiprocessing as mp
 import cv2
 import time
-from core.memory.shared_mem import SharedMemoryWriter
-from libs.sources import build_source
+from core.shared_mem import SharedMemoryWriter
+from plugins.sources import build_source
 
 class SourceStreamer(mp.Process):
     def __init__(self, config, shm_name, queues):
