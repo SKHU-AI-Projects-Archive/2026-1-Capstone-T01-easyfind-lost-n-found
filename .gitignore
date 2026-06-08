@@ -214,3 +214,13 @@ logs/
 *.pt
 *.json
 *.png
+
+# Project runtime outputs (소급 검색 아카이브 / 썸네일 / 분실물 스냅샷)
+archives/
+search_results/
+plugins/abandoned/scenes/
+plugins/abandoned/obj-imgs/
+plugins/abandoned/logs/
+
+# Node (frontend/.gitignore도 별도로 커버)
+node_modules/

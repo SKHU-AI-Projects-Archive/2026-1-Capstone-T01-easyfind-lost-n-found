@@ -1,0 +1,100 @@
+# EasyFind 시스템 기본값 (default_config.yaml)
+# 실험 config는 이 파일과 deep-merge된다.
+# 실험 config에서 지정하지 않은 키는 여기서 정의된 값이 사용된다.
+
+sources: []
+
+pipelines: []
+
+output:
+  mode: async          # 'sync' | 'async' — async 권장 (sync는 handler 속도에 따라 지연 발생)
+  target_fps: 30
+  handlers: []
+
+# 소급 검색(on-demand) 설정. sources에 type: ArchiveSource 가 있을 때 활성화된다.
+search:
+  thumb_root: search_results   # 검출 썸네일 저장 루트 (WebHandler가 /search_thumb로 서빙)
+
+# ──────────────────────────────────────────
+# 아래 _defaults 섹션은 main.py가 직접 사용하지 않는다.
+# 각 컴포넌트 init에서 config.get(key, default) 로 처리된다.
+# 이 섹션은 사용 가능한 파라미터와 기본값을 문서화하기 위한 참고용이다.
+# ──────────────────────────────────────────
+
+_source_defaults:
+  width: 1920
+  height: 1080
+  fps: 30
+  buffer_size: 60       # 공유메모리 순환버퍼 크기 (프레임 수)
+  # --- WebcamSource 전용 (환경 견고성 옵션) ---
+  fourcc: "MJPG"        # 강제 코덱. 미지원 캠은 ""로 두면 캠 기본 포맷 사용
+  read_retries: 5       # read() 일시 실패 시 재시도 횟수 (USB 글리치 흡수)
+  # --- 소급 검색용 프레임 아카이브 ---
+  archive:
+    enable: false          # 상시 아카이빙 on/off
+    root: "archives"       # 저장 루트 디렉토리
+    jpeg_interval_sec: 5   # 주기 JPEG 저장 간격(초) — 검색의 시간 해상도
+    save_video: false      # 비디오 세그먼트(mp4) 저장 on/off
+    video_segment_sec: 60  # 비디오 세그먼트 길이(초)
+
+_pipeline_defaults:
+  enable: true
+  gpu_id: 0
+
+  detector:
+    type: DummyDetector
+    weights_path: assets/weights/yolo11n.pt
+    imgsz: 640
+    iou: 0.7
+    conf: 0.5
+    classes: null
+    device: null          # "cuda:0"/"cuda:1"/"cpu". null이면 gpu_id 기반 자동(cuda:{gpu_id} 또는 cpu)
+
+  tracker:
+    type: DummyTracker
+    track_thresh: 0.5
+    match_thresh: 0.8
+    track_buffer: 30
+    crowd: false
+    fps: 30
+    classes: null
+
+  abandoned:
+    type: abandonedObject
+    fps: 30
+    dist_threshold: 0.05              # 소유자 연결 최대 거리 (정규화)
+    static_dist_threshold: 0.01       # 정적 판정 이동 임계값 (정규화)
+    iou_threshold: 0.9                # 객체 동일성 판단 IoU 임계값
+    suspected_threshold_min: 15       # STATIC → SUSPECTED 전환 시간 (분)
+    lost_threshold_min: 15            # SUSPECTED → LOST 전환 시간 (분)
+    p_lost_threshold: 0.75            # LOST 판정 점수 임계값
+    clean_threshold_sec: 30           # obj_state 딕셔너리 정리 시간 (초)
+    prev_clean_threshold_sec: 1       # prev_bbox 정리 시간 (초)
+    alpha_per_sec: 0.01               # 소유자 점수 감소 속도 (/초)
+    beta_per_sec: 0.03                # 소유자 점수 증가 속도 (/초)
+    restore_threshold: 0.7            # 소유자 복귀 판정 점수
+    w_dist: 0.6                       # 소유자 점수 — 거리 가중치
+    w_vector: 0.4                     # 소유자 점수 — 이동벡터 가중치
+
+_handler_defaults:
+  ScreenHandler:
+    enable: true
+    view_width: 1280
+    view_height: 960
+    draw_detections: true
+    draw_tracks: true
+    show_info: true
+
+  WebHandler:
+    enable: false
+    port: 5000
+    view_width: 1280
+    view_height: 960
+    draw_detections: true
+    draw_tracks: true
+    show_info: true
+
+  FileLogHandler:
+    enable: false
+    output_dir: logs
+    filename: detections.csv
