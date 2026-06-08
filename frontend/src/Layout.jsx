@@ -1,6 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const apiPort = import.meta.env.VITE_API_PORT
+
 function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -15,7 +18,7 @@ function Layout({ children }) {
     
     const fetchStatus = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/status')
+        const res = await fetch(`${apiBaseUrl}:${apiPort}/api/status`)
         if (res.ok) {
           const data = await res.json()
           setStatus(data)

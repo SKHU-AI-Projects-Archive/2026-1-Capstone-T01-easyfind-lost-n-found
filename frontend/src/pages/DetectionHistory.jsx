@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const apiPort = import.meta.env.VITE_API_PORT
+
 function DetectionHistory() {
   const navigate = useNavigate()
   const [filterDate, setFilterDate] = useState('')
@@ -19,7 +22,7 @@ function DetectionHistory() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/detections')
+        const response = await fetch(`${apiBaseUrl}:${apiPort}/api/detections`)
         const data = await response.json()
         
         // 백엔드 데이터 형식을 프런트엔드 테이블 형식으로 변환

@@ -9,6 +9,12 @@ from pathlib import Path
 from flask import Flask, Response, render_template_string, jsonify, request, send_from_directory
 from flask_cors import CORS
 from .base_handler import BaseHandler
+from dotenv import load_dotenv
+
+# ── 환경 변수 로드 및 정제 ────────────────────────────────
+load_dotenv()
+base_url = os.environ.get("VITE_API_BASE_URL")
+# base_port = os.environ.get("VITE_API_PORT", "5000")
 
 # ── 실시간(live) 공유 상태 ────────────────────────────────
 latest_frames = {}            # {pipe_name: jpeg_bytes}
@@ -244,7 +250,7 @@ class WebHandler(BaseHandler):
     def _run_server(self):
         import logging
         logging.getLogger('werkzeug').setLevel(logging.ERROR)
-        print(f"[WebHandler] Dashboard available at http://localhost:{self.port}/")
+        print(f"[WebHandler] Dashboard available at {base_url}:{self.port}/")
         app.run(host='0.0.0.0', port=self.port, threaded=True, use_reloader=False)
 
     # ── 검색 결과 수집 (kind='search') ──

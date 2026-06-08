@@ -2,6 +2,9 @@ import { useLocation, useNavigate } from 'react-router-dom'
 // insert useRef to move zoom in the video 
 import { useState, useEffect, useRef, useCallback } from 'react'
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const apiPort = import.meta.env.VITE_API_PORT
+
 function Dashboard() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -24,7 +27,7 @@ function Dashboard() {
   useEffect(() => {
     const fetchCameras = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/cameras')
+        const response = await fetch(`${apiBaseUrl}:${apiPort}/api/cameras`)
         const data = await response.json()
         const dynamicCams = data.cameras.map(name => ({
           id: name,
@@ -164,7 +167,7 @@ function Dashboard() {
               overflow: 'hidden' 
             }}>
               <img 
-                src={`http://localhost:5000/video_feed/${cam.id}`} 
+                src={`${apiBaseUrl}:${apiPort}/video_feed/${cam.id}`} 
                 alt={cam.name} 
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
               />
@@ -263,7 +266,7 @@ function Dashboard() {
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <img src={`http://localhost:5000/video_feed/${modalCam.id}`} alt={modalCam.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <img src={`${apiBaseUrl}:${apiPort}/video_feed/${modalCam.id}`} alt={modalCam.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
               </div>
             </div>
 
