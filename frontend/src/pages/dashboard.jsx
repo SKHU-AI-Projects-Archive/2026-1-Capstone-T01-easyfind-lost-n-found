@@ -13,6 +13,7 @@ function Dashboard() {
   // 실제 백엔드 YAML 설정(Office_Cam, Hallway_Cam)에 맞춘 카메라 리스트
   //camera list from yaml file 
   const [cams, setCams] = useState([])
+  const [camStatus, setCamStatus] = useState({})
 
   // 줌 및 드래그 상태 관리
   const [position, setPosition] = useState({ x: 0, y: 0 })
@@ -39,9 +40,19 @@ function Dashboard() {
       }
     }
 
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch('http://localhost:5000/api/status')
+        const data = await res.json()
+        setCamStatus(data.pipelines || {})
+      } catch (err) {}
+    }
+
     fetchCameras()
-    const interval = setInterval(fetchCameras, 5000) 
-    return () => clearInterval(interval)
+    fetchStatus()
+    const interval = setInterval(fetchCameras, 5000)
+    const statusInterval = setInterval(fetchStatus, 2000)
+    return () => { clearInterval(interval); clearInterval(statusInterval) }
   }, [])
 
   useEffect(() => {
@@ -123,12 +134,17 @@ function Dashboard() {
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         {[
-          { label: 'Suspected Lost Items', value: '2', color: '#f59e0b' },
-          { label: 'Confirmed Lost Items', value: '1', color: '#ef4444' },
-        ].map((card, i) => (
-          <div key={i} style={{ background: 'white', borderRadius: '10px', padding: '16px 20px', border: '1px solid #e5e7eb' }}>
-            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>{card.label}</div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: card.color }}>{card.value}</div>
+          { label: 'Suspected Lost Items', key: 'SUSPECTED', color: '#f59e0b' },
+          { label: 'Lost Items', key: 'LOST', color: '#ef4444' },
+        ].map((card) => (
+          <div key={card.key} style={{ background: 'white', borderRadius: '10px', padding: '16px 20px', border: '1px solid #e5e7eb' }}>
+            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '10px' }}>{card.label}</div>
+            {Object.entries(camStatus).sort(([a], [b]) => a.localeCompare(b)).map(([cam, counts]) => (
+              <div key={cam} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>
+                <span>{cam}</span>
+                <span style={{ fontWeight: '600', color: card.color }}>{counts[card.key] || 0}</span>
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -150,7 +166,15 @@ function Dashboard() {
             }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#9ca3af', fontSize: '12px' }}>{cam.name}</span>
-              <span style={{ background: '#22c55e', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '8px' }}>● LIVE</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {camStatus[cam.id]?.SUSPECTED > 0 && (
+                  <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '10px', padding: '1px 6px', borderRadius: '8px', fontWeight: '600' }}>S {camStatus[cam.id].SUSPECTED}</span>
+                )}
+                {camStatus[cam.id]?.LOST > 0 && (
+                  <span style={{ background: '#ef4444', color: 'white', fontSize: '10px', padding: '1px 6px', borderRadius: '8px', fontWeight: '600' }}>L {camStatus[cam.id].LOST}</span>
+                )}
+                <span style={{ background: '#22c55e', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '8px' }}>● LIVE</span>
+              </div>
             </div>
             {/* 동적 스트리밍 경로 적용 */}
             <div style={{ 

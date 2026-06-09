@@ -6,7 +6,7 @@ function Layout({ children }) {
   const location = useLocation()
   const [time, setTime] = useState(new Date())
   const [status, setStatus] = useState({
-    summary: { suspected: 0, confirmed: 0, taken: 0 },
+    summary: { suspected: 0, confirmed: 0 },
     pipelines: {}
   })
 
@@ -66,7 +66,7 @@ function Layout({ children }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Suspected {status.summary.suspected}</span>
-          <span style={{ background: '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Confirmed {status.summary.confirmed}</span>
+          <span style={{ background: '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Lost {status.summary.confirmed}</span>
           <div style={{ cursor: 'pointer', position: 'relative' }} onClick={() => navigate('/alerts')}>
           <span style={{ fontSize: '18px' }}>🔔</span>
           <span style={{
@@ -83,7 +83,7 @@ function Layout({ children }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-          }}>{status.summary.suspected + status.summary.confirmed}</span>
+          }}>{(status.summary.suspected || 0) + (status.summary.confirmed || 0)}</span>
         </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '13px', fontWeight: '600' }}>{formatTime(time)}</div>
