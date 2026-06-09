@@ -14,9 +14,11 @@ function Alerts() {
         // 백엔드 상태명을 프런트엔드 표시용 텍스트로 변환
         const formattedAlerts = data.map(item => ({
           id: item.id,
+          track_id: item.track_id,
           type: item.type,
           cam: item.pipe_name,
           location: 'Detected Area',
+          date: item.first_seen.split(' ')[0],
           time: item.last_seen.split(' ')[1],
           status: mapStateToStatus(item.state),
           raw_state: item.state
@@ -35,7 +37,6 @@ function Alerts() {
 
   const mapStateToStatus = (state) => {
     switch(state) {
-      case 'SEPARATED': return 'Separated';
       case 'SUSPECTED': return 'Suspected';
       case 'LOST': return 'Confirmed';
       default: return state;
@@ -55,7 +56,7 @@ function Alerts() {
       {/* Filter Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {['All', 'Separated', 'Suspected', 'Confirmed'].map((f) => (
+          {['All', 'Suspected', 'Confirmed'].map((f) => (
             <button key={f} onClick={() => setFilter(f)} style={{
               padding: '6px 16px',
               borderRadius: '20px',
@@ -99,7 +100,13 @@ function Alerts() {
               gap: '16px',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
-                <div style={{ width: '44px', height: '44px', background: '#1a1f2e', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#6b7280', flexShrink: 0 }}>IMG</div>
+                <img
+                  src={`http://localhost:5000/api/obj_img/${alert.cam}/${alert.track_id}?date=${alert.date}`}
+                  alt="thumbnail"
+                  style={{ width: '44px', height: '44px', objectFit: 'cover', borderRadius: '8px', background: '#1a1f2e', flexShrink: 0 }}
+                  onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+                />
+                <div style={{ width: '44px', height: '44px', background: '#1a1f2e', borderRadius: '8px', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#6b7280', flexShrink: 0 }}>IMG</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>{alert.type} (ID:{alert.id})</div>
                   <div style={{ fontSize: '12px', color: '#6b7280' }}>{alert.cam} · {alert.location} · {alert.time}</div>

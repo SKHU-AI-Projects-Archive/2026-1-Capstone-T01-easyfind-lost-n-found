@@ -5,6 +5,7 @@ import time
 import uuid
 import random
 import threading
+from datetime import datetime
 from pathlib import Path
 from flask import Flask, Response, render_template_string, jsonify, request, send_from_directory
 from flask_cors import CORS
@@ -112,7 +113,7 @@ def get_detections():
 @app.route('/api/alerts')
 def get_alerts():
     with history_lock:
-        alerts = [i for i in detection_history if i['state'] in ['SEPARATED', 'SUSPECTED', 'LOST']]
+        alerts = [i for i in detection_history if i['state'] in ['SUSPECTED', 'LOST']]
         return jsonify(alerts)
 
 
@@ -229,6 +230,13 @@ def search_thumb(job_id, name):
     thumb_root = (_search_ctx or {}).get('thumb_root', 'search_results')
     directory = os.path.abspath(os.path.join(thumb_root, job_id))
     return send_from_directory(directory, name)
+
+
+@app.route('/api/obj_img/<pipename>/<obj_id>')
+def get_obj_img(pipename, obj_id):
+    date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    directory = Path('data/obj-imgs') / pipename / date_str
+    return send_from_directory(str(directory.resolve()), f'{obj_id}.jpg')
 
 
 class WebHandler(BaseHandler):
