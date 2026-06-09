@@ -83,6 +83,8 @@ class abandonedObject:
         self.alpha                      = config.get('alpha_per_sec', 0.01) / self.fps
         self.beta                       = config.get('beta_per_sec', 0.03) / self.fps
 
+        self.class_map                  = config.get('class_map', {0: 'person', 24: 'backpack', 26: 'handbag', 28: 'suitcase'})
+
         # owner score 가중치
         self.w_vector                   = config.get('w_vector', 0.4)
         self.w_dist                     = config.get('w_dist',   0.6)
@@ -126,7 +128,13 @@ class abandonedObject:
                 - state = 2인경우 class(object의 종류)와 color(추후 색구분/추출하는 방법을 찾는경우 추가) 정보도 추가 
             
         '''
-        #1. tracks에서 person, object 분리 
+        # class ID(int)를 문자열로 변환
+        tracks = [
+            list(t[:5]) + [self.class_map.get(t[5], t[5])] + list(t[6:])
+            for t in tracks
+        ]
+
+        #1. tracks에서 person, object 분리
         # 저장형태 : {id1 : track, id2 : track, ...}
         person = {}
         obj = {}
