@@ -135,7 +135,7 @@ function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         {[
           { label: 'Suspected Lost Items', key: 'SUSPECTED', color: '#f59e0b' },
-          { label: 'Lost Items', key: 'LOST', color: '#ef4444' },
+          { label: 'Confirmed Lost Items', key: 'LOST', color: '#ef4444' },
         ].map((card) => (
           <div key={card.key} style={{ background: 'white', borderRadius: '10px', padding: '16px 20px', border: '1px solid #e5e7eb' }}>
             <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '10px' }}>{card.label}</div>
