@@ -100,9 +100,10 @@ class abandonedObject:
         # {obj_id : {'frame' : , 'time': }}
         self.picked_up                  = {}
 
-        self.scene_folder = Path(__file__).parent / 'scenes'
-        self.obj_imgs_folder = Path(__file__).parent / 'obj-imgs'
-        self.logs_folder = Path(__file__).parent / 'logs'
+        _root = Path(__file__).parents[2] / 'data'
+        self.scene_folder = _root / 'scenes'
+        self.obj_imgs_folder = _root / 'obj-imgs'
+        self.logs_folder = _root / 'logs'
 
         # logger
         self.pipename = config.get('name', 'default')

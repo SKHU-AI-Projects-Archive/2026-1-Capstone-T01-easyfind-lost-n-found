@@ -19,7 +19,7 @@ metadata_lock = threading.Lock()
 
 latest_metadata = {
     "pipelines": {},
-    "summary": {"suspected": 0, "confirmed": 0, "taken": 0},
+    "summary": {"suspected": 0, "confirmed": 0},
     "history": []
 }
 
@@ -136,7 +136,21 @@ def video_feed(pipe_name):
 
 @app.route('/api/status')
 def get_status():
+    with history_lock:
+        per_cam = {}
+        for item in detection_history:
+            cam = item.get('pipe_name')
+            state = item.get('state')
+            if cam not in per_cam:
+                per_cam[cam] = {'SUSPECTED' : 0, 'LOST' : 0}
+            if state == 'SUSPECTED':
+                per_cam[cam]['SUSPECTED'] += 1
+            if state == 'LOST':
+                per_cam[cam]['LOST'] += 1
     with metadata_lock:
+        latest_metadata['pipelines'] = per_cam
+        latest_metadata['summary']['suspected'] = sum(v.get('SUSPECTED', 0) for v in per_cam.values())
+        latest_metadata['summary']['confirmed'] = sum(v.get('LOST', 0) for v in per_cam.values())
         return jsonify(latest_metadata)
 
 
