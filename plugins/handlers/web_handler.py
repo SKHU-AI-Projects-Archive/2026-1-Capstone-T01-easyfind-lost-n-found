@@ -298,10 +298,10 @@ class WebHandler(BaseHandler):
                     cid = int(det[-1])
                 except (ValueError, TypeError):
                     cid = hash(det[-1])
-                self.rectangle_dot(frame, x1, y1, x2, y2, self.class_color(cid), 2)
+                self.rectangle_dot(frame, x1, y1, x2, y2, self.class_color(cid), 1)
 
         if self.draw_tracks:
-            for trk in data.get('tracks', []):
+            for trk in data.get('tracks_ab', data.get('tracks', [])):
                 x1, y1, x2, y2 = self._to_pixel(trk[:4])
                 try:
                     tid = int(trk[4])
@@ -310,10 +310,12 @@ class WebHandler(BaseHandler):
                 try:
                     cid = int(trk[5])
                 except (ValueError, TypeError):
-                    cid = hash(trk[5])
-                color = self.class_color(cid)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(frame, f"ID:{tid}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                    cid = trk[5]
+                state = trk[6] if len(trk) > 6 else None
+                color = self.class_color(cid, state)
+                label = f"ID:{tid}" if not state else f"ID:{tid} {state}"
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
+                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1)
 
         ret, buffer = cv2.imencode('.jpg', frame)
         if ret:
@@ -347,7 +349,11 @@ class WebHandler(BaseHandler):
         return (int(bbox_norm[0] * self.view_w), int(bbox_norm[1] * self.view_h),
                 int(bbox_norm[2] * self.view_w), int(bbox_norm[3] * self.view_h))
 
-    def class_color(self, class_id):
+    def class_color(self, class_id, state=None):
+        if state == 'SUSPECTED':
+            return (0, 165, 255)
+        if state == 'LOST':
+            return (0, 0, 255)
         random.seed(class_id)
         return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
