@@ -185,7 +185,13 @@ function DetectionHistory() {
                   onMouseLeave={e => e.currentTarget.style.background = 'white'}
                 >
                   <td style={{ padding: '12px 16px' }}>
-                    <div style={{ width: '44px', height: '44px', background: '#1a1f2e', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#6b7280' }}>IMG</div>
+                    <img
+                      src={`http://localhost:5000/api/obj_img/${row.cam}/${row.track_id}?date=${row.date}`}
+                      alt="thumbnail"
+                      style={{ width: '44px', height: '44px', objectFit: 'cover', borderRadius: '6px', background: '#1a1f2e', display: 'block' }}
+                      onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+                    />
+                    <div style={{ width: '44px', height: '44px', background: '#1a1f2e', borderRadius: '6px', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#6b7280' }}>IMG</div>
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '14px', fontWeight: '500' }}>{row.type}</td>
                   <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{row.cam}</td>
@@ -216,7 +222,13 @@ function DetectionHistory() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '48px', height: '48px', background: '#1a1f2e', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#6b7280' }}>IMG</div>
+                <img
+                  src={`http://localhost:5000/api/obj_img/${selectedItem.cam}/${selectedItem.track_id}?date=${selectedItem.date}`}
+                  alt="thumbnail"
+                  style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px', background: '#1a1f2e', display: 'block' }}
+                  onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+                />
+                <div style={{ width: '48px', height: '48px', background: '#1a1f2e', borderRadius: '8px', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#6b7280' }}>IMG</div>
                 <div>
                   <div style={{ fontWeight: '600', fontSize: '16px' }}>{selectedItem.type} (ID:{selectedItem.track_id})</div>
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '8px', fontWeight: '600', ...getStatusStyle(selectedItem.status) }}>{selectedItem.status}</span>
