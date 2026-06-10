@@ -240,10 +240,19 @@ def get_obj_img(pipename, obj_id):
     return send_from_directory(str(directory.resolve()), f'{obj_id}.jpg')
 
 
+@app.route('/api/log_cams')
+def api_log_cams():
+    """로그가 존재하는 카메라 목록."""
+    logs_root = Path('data/logs')
+    cams = sorted(d.name for d in logs_root.iterdir() if d.is_dir()) if logs_root.exists() else []
+    return jsonify({"cams": cams})
+
+
 @app.route('/api/log_search')
 def api_log_search():
     start_str = request.args.get('start')
     end_str = request.args.get('end')
+    cam_filter = request.args.get('cam', '')
     if not start_str:
         return jsonify({"status": "error", "message": "start required"}), 400
     try:
@@ -263,6 +272,8 @@ def api_log_search():
 
     for pipename_dir in sorted(logs_root.iterdir()):
         if not pipename_dir.is_dir():
+            continue
+        if cam_filter and pipename_dir.name != cam_filter:
             continue
         for date_dir in sorted(pipename_dir.iterdir()):
             if not date_dir.is_dir():

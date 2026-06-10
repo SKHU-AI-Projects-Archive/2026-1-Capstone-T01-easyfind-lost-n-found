@@ -5,15 +5,22 @@ const API = 'http://localhost:5000'
 
 function DetectionHistory() {
   const navigate = useNavigate()
-  const [startDate, setStartDate] = useState('')
+  const today = new Date().toISOString().split('T')[0]
+  const [startDate, setStartDate] = useState(today)
   const [startTime, setStartTime] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [endDate, setEndDate] = useState(today)
   const [endTime, setEndTime] = useState('')
+  const [cams, setCams] = useState([])
+  const [selectedCam, setSelectedCam] = useState('')
   const [results, setResults] = useState([])
   const [activeIds, setActiveIds] = useState(new Set())
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [selectedItem, setSelectedItem] = useState(null)
+
+  useEffect(() => {
+    fetch(`${API}/api/log_cams`).then(r => r.json()).then(d => setCams(d.cams || [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const fetchActive = async () => {
@@ -34,7 +41,7 @@ function DetectionHistory() {
     const end = endDate && endTime ? `${endDate} ${endTime}:59` : ''
     setLoading(true); setMessage(''); setResults([])
     try {
-      const url = `${API}/api/log_search?start=${encodeURIComponent(start)}${end ? `&end=${encodeURIComponent(end)}` : ''}`
+      const url = `${API}/api/log_search?start=${encodeURIComponent(start)}${end ? `&end=${encodeURIComponent(end)}` : ''}${selectedCam ? `&cam=${encodeURIComponent(selectedCam)}` : ''}`
       const data = await fetch(url).then(r => r.json())
       setResults(data)
       setMessage(data.length === 0 ? '해당 시간대에 탐지된 분실물이 없습니다.' : '')
@@ -65,7 +72,7 @@ function DetectionHistory() {
 
       {/* 시간 범위 입력 */}
       <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '12px', alignItems: 'flex-end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr auto', gap: '12px', alignItems: 'flex-end' }}>
           <Field label="From Date">
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={inp} />
           </Field>
@@ -77,6 +84,12 @@ function DetectionHistory() {
           </Field>
           <Field label="To Time (optional)">
             <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={inp} />
+          </Field>
+          <Field label="Camera (optional)">
+            <select value={selectedCam} onChange={e => setSelectedCam(e.target.value)} style={inp}>
+              <option value="">All</option>
+              {cams.map((c, i) => <option key={i} value={c}>{c}</option>)}
+            </select>
           </Field>
           <button onClick={handleSearch} disabled={loading} style={{
             background: loading ? '#9ca3af' : '#1a1f2e', color: 'white', padding: '8px 20px',
