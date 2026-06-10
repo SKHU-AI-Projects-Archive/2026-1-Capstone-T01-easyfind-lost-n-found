@@ -115,7 +115,6 @@ function Layout({ children }) {
           ))}
           <div style={{ marginTop: 'auto', padding: '12px 20px', fontSize: '11px', color: '#9ca3af' }}>
             <div>Camera {connectedCams} connected</div>
-            <div style={{ marginTop: '4px' }}>YOLOWorld + ByteTrack</div>
           </div>
         </div>
 
