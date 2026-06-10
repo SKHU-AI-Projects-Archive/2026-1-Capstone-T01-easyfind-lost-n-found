@@ -46,39 +46,25 @@ function Alerts() {
 
   const filtered = filter === 'All' ? alerts : alerts.filter(a => a.status === filter)
 
-  const dismiss = (id) => setAlerts(alerts.filter(a => a.id !== id))
-  const clearAll = () => setAlerts([])
-
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
       <h2 style={{ fontSize: '22px', fontWeight: '600', margin: '0 0 4px' }}>Alerts</h2>
       <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>Manage and respond to real-time lost item alerts</p>
 
       {/* Filter Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {['All', 'Suspected', 'Confirmed'].map((f) => (
-            <button key={f} onClick={() => setFilter(f)} style={{
-              padding: '6px 16px',
-              borderRadius: '20px',
-              border: '1px solid var(--border-color)',
-              fontSize: '13px',
-              cursor: 'pointer',
-              background: filter === f ? '#1a1f2e' : 'var(--bg-card)',
-              color: filter === f ? 'white' : 'var(--text-secondary)',
-              fontWeight: filter === f ? '600' : '400',
-            }}>{f}</button>
-          ))}
-        </div>
-        <button onClick={clearAll} style={{
-          padding: '6px 16px',
-          borderRadius: '8px',
-          border: '1px solid var(--border-color)',
-          fontSize: '13px',
-          cursor: 'pointer',
-          background: 'var(--bg-card)',
-          color: '#ef4444',
-        }}>Clear All</button>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        {['All', 'Suspected', 'Confirmed'].map((f) => (
+          <button key={f} onClick={() => setFilter(f)} style={{
+            padding: '6px 16px',
+            borderRadius: '20px',
+            border: '1px solid var(--border-color)',
+            fontSize: '13px',
+            cursor: 'pointer',
+            background: filter === f ? '#1a1f2e' : 'var(--bg-card)',
+            color: filter === f ? 'white' : 'var(--text-secondary)',
+            fontWeight: filter === f ? '600' : '400',
+          }}>{f}</button>
+        ))}
       </div>
 
       {/* Alert Cards */}
@@ -92,46 +78,32 @@ function Alerts() {
             <div key={alert.id} style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
-              borderLeft: `4px solid ${alert.raw_state === 'LOST' ? '#ef4444' : alert.raw_state === 'SUSPECTED' ? '#f59e0b' : '#3b82f6'}`,
+              borderLeft: `4px solid ${alert.raw_state === 'LOST' ? '#ef4444' : '#f59e0b'}`,
               borderRadius: '0 10px 10px 0',
               padding: '16px 20px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
               gap: '16px',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
-                <img
-                  src={`${apiBaseUrl}:${apiPort}/api/obj_img/${alert.cam}/${alert.track_id}?date=${alert.date}`}
-                  alt="thumbnail"
-                  style={{ width: '44px', height: '44px', objectFit: 'cover', borderRadius: '8px', background: '#1a1f2e', flexShrink: 0 }}
-                  onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
-                />
-                <div style={{ width: '44px', height: '44px', background: '#1a1f2e', borderRadius: '8px', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#6b7280', flexShrink: 0 }}>IMG</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>{alert.type} (ID:{alert.id})</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{alert.cam} · {alert.location} · {alert.time}</div>
-                </div>
+              <img
+                src={`${apiBaseUrl}:${apiPort}/api/obj_img/${alert.cam}/${alert.track_id}?date=${alert.date}`}
+                alt="thumbnail"
+                style={{ width: '44px', height: '44px', objectFit: 'cover', borderRadius: '8px', background: '#1a1f2e', flexShrink: 0 }}
+                onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
+              />
+              <div style={{ width: '44px', height: '44px', background: '#1a1f2e', borderRadius: '8px', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#6b7280', flexShrink: 0 }}>IMG</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>{alert.type} (ID:{alert.id})</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{alert.cam} · {alert.location} · {alert.time}</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{
-                  fontSize: '11px',
-                  padding: '3px 10px',
-                  borderRadius: '10px',
-                  fontWeight: '600',
-                  background: alert.raw_state === 'LOST' ? '#fef2f2' : alert.raw_state === 'SUSPECTED' ? '#fffbeb' : '#eff6ff',
-                  color: alert.raw_state === 'LOST' ? '#ef4444' : alert.raw_state === 'SUSPECTED' ? '#f59e0b' : '#3b82f6',
-                }}>{alert.status}</span>
-                <button onClick={() => dismiss(alert.id)} style={{
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  background: 'var(--bg-card)',
-                  color: 'var(--text-secondary)',
-                }}>Dismiss</button>
-              </div>
+              <span style={{
+                fontSize: '11px',
+                padding: '3px 10px',
+                borderRadius: '10px',
+                fontWeight: '600',
+                background: alert.raw_state === 'LOST' ? '#fef2f2' : '#fffbeb',
+                color: alert.raw_state === 'LOST' ? '#ef4444' : '#f59e0b',
+              }}>{alert.status}</span>
             </div>
           ))
         )}

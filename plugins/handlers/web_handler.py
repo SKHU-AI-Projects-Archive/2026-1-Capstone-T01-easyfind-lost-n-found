@@ -335,6 +335,8 @@ class WebHandler(BaseHandler):
         self.draw_dets = config.get('draw_detections', True)
         self.draw_tracks = config.get('draw_tracks', True)
         self.draw_person = config.get('draw_person', False)
+        self.history_clean_sec = config.get('history_clean_sec', 30)
+        self.history_clean_sec = config.get('history_clean_sec', 30)
 
         with WebHandler._server_lock:
             if not WebHandler._server_started:
@@ -452,8 +454,12 @@ class WebHandler(BaseHandler):
                             'type': trk[5], 'pipe_name': pipe_name, 'state': state,
                             'first_seen': current_time, 'last_seen': current_time
                         })
-            if len(detection_history) > 200:
-                detection_history.pop(0)
+            # pipeline의 clean_threshold_sec와 동일 기준으로 오래된 항목 제거
+            cutoff = datetime.now().timestamp() - self.history_clean_sec
+            detection_history[:] = [
+                item for item in detection_history
+                if datetime.strptime(item['last_seen'], '%Y-%m-%d %H:%M:%S').timestamp() > cutoff
+            ]
 
     def _to_pixel(self, bbox_norm):
         return (int(bbox_norm[0] * self.view_w), int(bbox_norm[1] * self.view_h),

@@ -99,6 +99,7 @@ _handler_defaults:
     draw_tracks: true
     draw_person: false
     show_info: true
+    history_clean_sec: 30   # detection_history 정리 기준 (pipeline의 clean_threshold_sec와 맞출 것)
 
   FileLogHandler:
     enable: false
