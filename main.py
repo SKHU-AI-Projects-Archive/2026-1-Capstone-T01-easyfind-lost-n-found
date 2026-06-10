@@ -32,10 +32,10 @@ def cleanup_stale_shm(config):
 
 def cleanup_abandoned_files(days=10):
     cutoff = datetime.now() - timedelta(days=days)
-    abandoned = Path(__file__).parent / 'plugins' / 'abandoned'
+    data = Path(__file__).parent / 'data'
 
     for folder_name in ('scenes', 'logs', 'obj-imgs'):
-        base = abandoned / folder_name
+        base = data / folder_name
         if not base.exists():
             continue
         for pipename_dir in base.iterdir():

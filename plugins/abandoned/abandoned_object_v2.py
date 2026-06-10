@@ -35,15 +35,15 @@ class objLogger:
         self.file = open(csv_path, 'a', newline='', encoding='utf-8')
         self.writer = csv.writer(self.file)
         if is_new:
-            self.writer.writerow(['obj_id', 'class', 'time'])
+            self.writer.writerow(['obj_id', 'class', 'time', 'state'])
         self.current_date = date_str
 
-    def save(self, obj_id, obj_info):
+    def save(self, obj_id, obj_info, state='SUSPECTED'):
         date_str = datetime.now().strftime('%Y-%m-%d')
         self._open_for_date(date_str)
         cls = obj_info.get('class')
         timestamp = obj_info.get('last_seen(time)')
-        self.writer.writerow([obj_id, cls, timestamp])
+        self.writer.writerow([obj_id, cls, timestamp, state])
         self.file.flush()
 
     def close(self):
@@ -83,6 +83,8 @@ class abandonedObject:
         self.alpha                      = config.get('alpha_per_sec', 0.01) / self.fps
         self.beta                       = config.get('beta_per_sec', 0.03) / self.fps
 
+        self.class_map                  = config.get('class_map', {0: 'person', 24: 'backpack', 26: 'handbag', 28: 'suitcase'})
+
         # owner score 가중치
         self.w_vector                   = config.get('w_vector', 0.4)
         self.w_dist                     = config.get('w_dist',   0.6)
@@ -98,9 +100,10 @@ class abandonedObject:
         # {obj_id : {'frame' : , 'time': }}
         self.picked_up                  = {}
 
-        self.scene_folder = Path(__file__).parent / 'scenes'
-        self.obj_imgs_folder = Path(__file__).parent / 'obj-imgs'
-        self.logs_folder = Path(__file__).parent / 'logs'
+        _root = Path(__file__).parents[2] / 'data'
+        self.scene_folder = _root / 'scenes'
+        self.obj_imgs_folder = _root / 'obj-imgs'
+        self.logs_folder = _root / 'logs'
 
         # logger
         self.pipename = config.get('name', 'default')
@@ -126,7 +129,13 @@ class abandonedObject:
                 - state = 2인경우 class(object의 종류)와 color(추후 색구분/추출하는 방법을 찾는경우 추가) 정보도 추가 
             
         '''
-        #1. tracks에서 person, object 분리 
+        # class ID(int)를 문자열로 변환
+        tracks = [
+            list(t[:5]) + [self.class_map.get(t[5], t[5])] + list(t[6:])
+            for t in tracks
+        ]
+
+        #1. tracks에서 person, object 분리
         # 저장형태 : {id1 : track, id2 : track, ...}
         person = {}
         obj = {}
@@ -212,6 +221,7 @@ class abandonedObject:
                         lost_lapse = frame_id - susp_start
                         if lost_lapse >= self.lost_threshold and obj_info['state'] == objectState.SUSPECTED:
                             obj_info['state'] = objectState.LOST
+                            self.logger.save(obj_id, obj_info, state='LOST')
                             print(f'{obj_id} : turn LOST')  
 
             # 움직임이 있는 경우     

@@ -1,10 +1,12 @@
 import os
 import re
+import csv
 import cv2
 import time
 import uuid
 import random
 import threading
+from datetime import datetime
 from pathlib import Path
 from flask import Flask, Response, render_template_string, jsonify, request, send_from_directory
 from flask_cors import CORS
@@ -25,7 +27,7 @@ metadata_lock = threading.Lock()
 
 latest_metadata = {
     "pipelines": {},
-    "summary": {"suspected": 0, "confirmed": 0, "taken": 0},
+    "summary": {"suspected": 0, "confirmed": 0},
     "history": []
 }
 
@@ -118,7 +120,7 @@ def get_detections():
 @app.route('/api/alerts')
 def get_alerts():
     with history_lock:
-        alerts = [i for i in detection_history if i['state'] in ['SEPARATED', 'SUSPECTED', 'LOST']]
+        alerts = [i for i in detection_history if i['state'] in ['SUSPECTED', 'LOST']]
         return jsonify(alerts)
 
 
@@ -142,7 +144,21 @@ def video_feed(pipe_name):
 
 @app.route('/api/status')
 def get_status():
+    with history_lock:
+        per_cam = {}
+        for item in detection_history:
+            cam = item.get('pipe_name')
+            state = item.get('state')
+            if cam not in per_cam:
+                per_cam[cam] = {'SUSPECTED' : 0, 'LOST' : 0}
+            if state == 'SUSPECTED':
+                per_cam[cam]['SUSPECTED'] += 1
+            if state == 'LOST':
+                per_cam[cam]['LOST'] += 1
     with metadata_lock:
+        latest_metadata['pipelines'] = per_cam
+        latest_metadata['summary']['suspected'] = sum(v.get('SUSPECTED', 0) for v in per_cam.values())
+        latest_metadata['summary']['confirmed'] = sum(v.get('LOST', 0) for v in per_cam.values())
         return jsonify(latest_metadata)
 
 
@@ -223,6 +239,89 @@ def search_thumb(job_id, name):
     return send_from_directory(directory, name)
 
 
+@app.route('/api/obj_img/<pipename>/<obj_id>')
+def get_obj_img(pipename, obj_id):
+    date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
+    directory = Path('data/obj-imgs') / pipename / date_str
+    return send_from_directory(str(directory.resolve()), f'{obj_id}.jpg')
+
+
+
+@app.route('/api/log_search')
+def api_log_search():
+    start_str = request.args.get('start')
+    end_str = request.args.get('end')
+    cam_filter = request.args.get('cam', '')
+    if not start_str:
+        return jsonify({"status": "error", "message": "start required"}), 400
+    try:
+        start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
+        end_dt = datetime.strptime(end_str, '%Y-%m-%d %H:%M:%S') if end_str else datetime.now()
+    except ValueError:
+        return jsonify({"status": "error", "message": "invalid datetime format (YYYY-MM-DD HH:MM:SS)"}), 400
+
+    logs_root = Path('data/logs')
+    results = []
+    if not logs_root.exists():
+        return jsonify([])
+
+    # {(pipename, obj_id): best_entry} — LOST가 SUSPECTED보다 우선
+    best = {}
+    state_priority = {'LOST': 1, 'SUSPECTED': 0}
+
+    for pipename_dir in sorted(logs_root.iterdir()):
+        if not pipename_dir.is_dir():
+            continue
+        if cam_filter and pipename_dir.name != cam_filter:
+            continue
+        for date_dir in sorted(pipename_dir.iterdir()):
+            if not date_dir.is_dir():
+                continue
+            csv_path = date_dir / 'info.csv'
+            if not csv_path.exists():
+                continue
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                for row in csv.DictReader(f):
+                    try:
+                        row_dt = datetime.strptime(row['time'], '%Y-%m-%d %H:%M:%S')
+                    except (ValueError, KeyError):
+                        continue
+                    if not (start_dt <= row_dt <= end_dt):
+                        continue
+                    key = (pipename_dir.name, row['obj_id'])
+                    state = row.get('state', 'SUSPECTED')
+                    entry = {
+                        'obj_id': row['obj_id'],
+                        'class': row['class'],
+                        'time': row['time'],
+                        'state': state,
+                        'pipename': pipename_dir.name,
+                    }
+                    existing = best.get(key)
+                    if existing is None or state_priority.get(state, 0) > state_priority.get(existing['state'], 0):
+                        best[key] = entry
+
+    results = sorted(best.values(), key=lambda x: x['time'])
+    return jsonify(results)
+
+
+@app.route('/api/scene_img/<pipename>/<obj_id>')
+def get_scene_img(pipename, obj_id):
+    scenes_root = Path('data/scenes') / pipename
+    if not scenes_root.exists():
+        return jsonify({"error": "not found"}), 404
+    for date_dir in sorted(scenes_root.iterdir()):
+        if not date_dir.is_dir():
+            continue
+        for hour_dir in sorted(date_dir.iterdir()):
+            if not hour_dir.is_dir():
+                continue
+            img_path = hour_dir / f'{obj_id}.jpg'
+            if img_path.exists():
+                return send_from_directory(str(hour_dir.resolve()), f'{obj_id}.jpg')
+    return jsonify({"error": "not found"}), 404
+
+
 class WebHandler(BaseHandler):
     _server_started = False
     _server_lock = threading.Lock()
@@ -235,6 +334,7 @@ class WebHandler(BaseHandler):
         self.show_info = config.get('show_info', True)
         self.draw_dets = config.get('draw_detections', True)
         self.draw_tracks = config.get('draw_tracks', True)
+        self.draw_person = config.get('draw_person', False)
 
         with WebHandler._server_lock:
             if not WebHandler._server_started:
@@ -304,10 +404,10 @@ class WebHandler(BaseHandler):
                     cid = int(det[-1])
                 except (ValueError, TypeError):
                     cid = hash(det[-1])
-                self.rectangle_dot(frame, x1, y1, x2, y2, self.class_color(cid), 2)
+                self.rectangle_dot(frame, x1, y1, x2, y2, self.class_color(cid), 1)
 
         if self.draw_tracks:
-            for trk in data.get('tracks', []):
+            for trk in data.get('tracks_ab', data.get('tracks', [])):
                 x1, y1, x2, y2 = self._to_pixel(trk[:4])
                 try:
                     tid = int(trk[4])
@@ -316,10 +416,16 @@ class WebHandler(BaseHandler):
                 try:
                     cid = int(trk[5])
                 except (ValueError, TypeError):
-                    cid = hash(trk[5])
-                color = self.class_color(cid)
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(frame, f"ID:{tid}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+                    cid = trk[5]
+                
+                if not self.draw_person and cid == 'person':
+                    continue
+
+                state = trk[6] if len(trk) > 6 else None
+                color = self.class_color(cid, state)
+                label = f"ID:{tid}" if not state else f"ID:{tid} {state}"
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
+                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1)
 
         ret, buffer = cv2.imencode('.jpg', frame)
         if ret:
@@ -353,7 +459,11 @@ class WebHandler(BaseHandler):
         return (int(bbox_norm[0] * self.view_w), int(bbox_norm[1] * self.view_h),
                 int(bbox_norm[2] * self.view_w), int(bbox_norm[3] * self.view_h))
 
-    def class_color(self, class_id):
+    def class_color(self, class_id, state=None):
+        if state == 'SUSPECTED':
+            return (0, 165, 255)
+        if state == 'LOST':
+            return (0, 0, 255)
         random.seed(class_id)
         return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 

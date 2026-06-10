@@ -9,7 +9,7 @@ function Layout({ children }) {
   const location = useLocation()
   const [time, setTime] = useState(new Date())
   const [status, setStatus] = useState({
-    summary: { suspected: 0, confirmed: 0, taken: 0 },
+    summary: { suspected: 0, confirmed: 0 },
     pipelines: {}
   })
 
@@ -86,7 +86,7 @@ function Layout({ children }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-          }}>{status.summary.suspected + status.summary.confirmed}</span>
+          }}>{(status.summary.suspected || 0) + (status.summary.confirmed || 0)}</span>
         </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '13px', fontWeight: '600' }}>{formatTime(time)}</div>
@@ -118,7 +118,6 @@ function Layout({ children }) {
           ))}
           <div style={{ marginTop: 'auto', padding: '12px 20px', fontSize: '11px', color: '#9ca3af' }}>
             <div>Camera {connectedCams} connected</div>
-            <div style={{ marginTop: '4px' }}>YOLOWorld + ByteTrack</div>
           </div>
         </div>
 

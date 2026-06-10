@@ -75,6 +75,11 @@ _pipeline_defaults:
     restore_threshold: 0.7            # 소유자 복귀 판정 점수
     w_dist: 0.6                       # 소유자 점수 — 거리 가중치
     w_vector: 0.4                     # 소유자 점수 — 이동벡터 가중치
+    class_map:                        # 정수 class ID → 문자열 이름 변환 (COCO 기준) | 파인튜닝한 모델의 class에 따라 변경
+      0: person
+      24: backpack
+      26: handbag
+      28: suitcase
 
 _handler_defaults:
   ScreenHandler:
@@ -92,6 +97,7 @@ _handler_defaults:
     view_height: 960
     draw_detections: true
     draw_tracks: true
+    draw_person: false
     show_info: true
 
   FileLogHandler:
