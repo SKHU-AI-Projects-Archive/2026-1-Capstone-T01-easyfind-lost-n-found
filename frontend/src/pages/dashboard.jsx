@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const apiPort = import.meta.env.VITE_API_PORT
+const launcherPort = import.meta.env.VITE_LAUNCHER_PORT
 
 function Dashboard() {
   const location = useLocation()
@@ -13,6 +14,11 @@ function Dashboard() {
 
   const [cams, setCams] = useState([])
   const [camStatus, setCamStatus] = useState({})
+  const [isRunning, setIsRunning] = useState(false)
+  const [launcherOnline, setLauncherOnline] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [configs, setConfigs] = useState([])
+  const [selectedConfig, setSelectedConfig] = useState('')
 
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
@@ -46,11 +52,39 @@ function Dashboard() {
       } catch (err) {}
     }
 
+    const fetchLauncher = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl}:${launcherPort}/api/launcher/status`)
+        if (res.ok) {
+          const data = await res.json()
+          setIsRunning(data.running)
+          setSelectedConfig(data.config)
+          setLauncherOnline(true)
+          // configs가 비어있을 때만 다시 가져옴
+          setConfigs(prev => {
+            if (prev.length === 0) {
+              fetch(`${apiBaseUrl}:${launcherPort}/api/launcher/configs`)
+                .then(r => r.ok ? r.json() : null)
+                .then(d => d && setConfigs(d.configs))
+                .catch(() => {})
+            }
+            return prev
+          })
+        } else {
+          setLauncherOnline(false)
+        }
+      } catch {
+        setLauncherOnline(false)
+      }
+    }
+
     fetchCameras()
     fetchStatus()
+    fetchLauncher()
     const interval = setInterval(fetchCameras, 5000)
     const statusInterval = setInterval(fetchStatus, 2000)
-    return () => { clearInterval(interval); clearInterval(statusInterval) }
+    const launcherInterval = setInterval(fetchLauncher, 3000)
+    return () => { clearInterval(interval); clearInterval(statusInterval); clearInterval(launcherInterval) }
   }, [])
 
   useEffect(() => {
@@ -94,6 +128,30 @@ function Dashboard() {
     return () => el.removeEventListener('wheel', onWheel)
   }, [modalCam, handleZoomIn, handleZoomOut])
 
+  const handleStart = async () => {
+    setActionLoading(true)
+    try {
+      await fetch(`${apiBaseUrl}:${launcherPort}/api/launcher/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: selectedConfig }),
+      })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleStop = async () => {
+    setActionLoading(true)
+    try {
+      await fetch(`${apiBaseUrl}:${launcherPort}/api/launcher/stop`, { method: 'POST' })
+      setCams([])
+      setIsRunning(false)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handleOpenModal = (cam) => {
     setModalCam(cam)
     handleZoomReset()
@@ -122,6 +180,29 @@ function Dashboard() {
 
   return (
     <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', overflow: 'auto' }}>
+
+      {/* Stop 버튼 — 실행 중일 때만 표시 */}
+      {launcherOnline && isRunning && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={handleStop}
+            disabled={actionLoading}
+            style={{
+              padding: '6px 16px',
+              background: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: actionLoading ? 'not-allowed' : 'pointer',
+              opacity: actionLoading ? 0.6 : 1,
+            }}
+          >
+            {actionLoading ? '...' : 'Stop System'}
+          </button>
+        </div>
+      )}
 
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -187,8 +268,54 @@ function Dashboard() {
           </div>
         ))}
         {cams.length === 0 && (
-          <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-            No active camera streams found.
+          <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '60px 40px', color: 'var(--text-secondary)' }}>
+            {launcherOnline && !isRunning ? (
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '16px' }}>Detection system is not running</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', marginBottom: '16px' }}>
+                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Config</span>
+                  <select
+                    value={selectedConfig}
+                    onChange={e => setSelectedConfig(e.target.value)}
+                    style={{
+                      padding: '7px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--bg-input)',
+                      color: 'var(--text-primary)',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      minWidth: '200px',
+                    }}
+                  >
+                    <option value=''>Select config...</option>
+                    {configs.map(c => (
+                      <option key={c} value={`configs/${c}`}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={handleStart}
+                  disabled={actionLoading || !selectedConfig}
+                  style={{
+                    padding: '10px 28px',
+                    background: '#22c55e',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: actionLoading || !selectedConfig ? 'not-allowed' : 'pointer',
+                    opacity: actionLoading || !selectedConfig ? 0.6 : 1,
+                  }}
+                >
+                  {actionLoading ? 'Starting...' : 'Start System'}
+
+                </button>
+              </div>
+            ) : (
+              <div>No active camera streams found.</div>
+            )}
           </div>
         )}
       </div>

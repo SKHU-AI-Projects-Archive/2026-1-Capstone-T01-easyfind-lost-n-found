@@ -39,10 +39,26 @@ function Settings() {
     justifyContent: 'space-between',
   }
 
+  const innerCardStyle = {
+    background: 'var(--bg-subtle)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '10px',
+    padding: '20px 24px',
+    marginBottom: '16px',
+  }
+
+  const sectionLabelStyle = {
+    fontSize: '13px',
+    fontWeight: '700',
+    color: 'var(--text-secondary)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    marginBottom: '16px',
+  }
+
   return (
     <div style={{ padding: '40px 32px', overflow: 'auto', height: '100%' }}>
 
-      {/* 큰 외부 카드 — 제목 포함 */}
       <div style={{
         maxWidth: '800px',
         margin: '0 auto',
@@ -55,17 +71,9 @@ function Settings() {
         <h2 style={{ fontSize: '26px', fontWeight: '700', margin: '0 0 6px' }}>System Settings</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '15px', margin: '0 0 28px' }}>Configure system preferences</p>
 
-        {/* Appearance 내부 카드 */}
-        <div style={{
-          background: 'var(--bg-subtle)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '10px',
-          padding: '20px 24px',
-          marginBottom: '16px',
-        }}>
-          <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '16px' }}>
-            Appearance
-          </div>
+        {/* Appearance */}
+        <div style={innerCardStyle}>
+          <div style={sectionLabelStyle}>Appearance</div>
           <div style={rowStyle}>
             <div>
               <div style={{ fontWeight: '600', fontSize: '16px' }}>Dark Mode</div>
@@ -77,16 +85,9 @@ function Settings() {
           </div>
         </div>
 
-        {/* Notifications 내부 카드 */}
-        <div style={{
-          background: 'var(--bg-subtle)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '10px',
-          padding: '20px 24px',
-        }}>
-          <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '16px' }}>
-            Notifications
-          </div>
+        {/* Notifications */}
+        <div style={{ ...innerCardStyle, marginBottom: 0 }}>
+          <div style={sectionLabelStyle}>Notifications</div>
           <div style={rowStyle}>
             <div>
               <div style={{ fontWeight: '600', fontSize: '16px' }}>Toast Notifications</div>
