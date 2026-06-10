@@ -135,13 +135,7 @@ function Layout({ children }) {
               justifyContent: 'center',
             }}>{(status.summary.suspected || 0) + (status.summary.confirmed || 0)}</span>
           </div>
-          <button onClick={() => setIsDark(d => !d)} style={{
-            background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px',
-            color: 'white', fontSize: '14px', cursor: 'pointer', padding: '2px 8px', lineHeight: 1.5,
-          }}>
-            {isDark ? '☀️' : '🌙'}
-          </button>
-          <div style={{ textAlign: 'right' }}>
+<div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '13px', fontWeight: '600' }}>{formatTime(time)}</div>
             <div style={{ fontSize: '10px', color: '#9ca3af' }}>{formatDate(time)}</div>
           </div>

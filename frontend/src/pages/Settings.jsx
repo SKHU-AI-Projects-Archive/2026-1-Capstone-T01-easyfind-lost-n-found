@@ -1,9 +1,15 @@
 import { useState } from 'react'
 
 function Settings() {
-  const [suspectedTime, setSuspectedTime] = useState(() => localStorage.getItem('suspectedTime') || 15)
-  const [confirmedTime, setConfirmedTime] = useState(() => localStorage.getItem('confirmedTime') || 15)
   const [adminAlerts, setAdminAlerts] = useState(() => localStorage.getItem('adminAlerts') !== 'false')
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
+
+  const toggleTheme = () => {
+    const next = !isDark
+    setIsDark(next)
+    localStorage.setItem('theme', next ? 'dark' : 'light')
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light')
+  }
 
   const sectionStyle = {
     background: 'var(--bg-card)',
@@ -49,84 +55,43 @@ function Settings() {
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
       <h2 style={{ fontSize: '22px', fontWeight: '600', margin: '0 0 4px' }}>System Settings</h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>Configure detection and notification settings</p>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>Configure notification settings</p>
 
-      {/* Detection Thresholds */}
       <div style={sectionStyle}>
         <div style={sectionTitleStyle}>
-          <span style={{ fontSize: '18px' }}>🎯</span>
-          Detection Thresholds
+          <span style={{ fontSize: '18px' }}>🎨</span>
+          Appearance
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '4px' }}>Suspected Status (minutes)</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Time before an item is marked as suspected</div>
-            <input
-              type="number"
-              value={suspectedTime}
-              onChange={(e) => setSuspectedTime(e.target.value)}
-              min="1" max="60"
-              style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-            />
+            <div style={{ fontWeight: '500', fontSize: '14px' }}>Dark Mode</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Switch between light and dark theme</div>
           </div>
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: '500', marginBottom: '4px' }}>Confirmed Status (minutes)</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>Time before an item is marked as confirmed lost</div>
-            <input
-              type="number"
-              value={confirmedTime}
-              onChange={(e) => setConfirmedTime(e.target.value)}
-              min="1" max="60"
-              style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
-            />
+          <div style={toggleStyle(isDark)} onClick={toggleTheme}>
+            <div style={toggleDotStyle(isDark)}></div>
           </div>
         </div>
       </div>
 
-      {/* Notification Settings */}
       <div style={sectionStyle}>
         <div style={sectionTitleStyle}>
           <span style={{ fontSize: '18px' }}>🔔</span>
           Notification Settings
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {[
-            { label: 'Admin Alerts', desc: 'Receive notifications for all detected items', value: adminAlerts, toggle: () => setAdminAlerts(!adminAlerts) },
-          ].map((item, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontWeight: '500', fontSize: '14px' }}>{item.label}</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{item.desc}</div>
-              </div>
-              <div style={toggleStyle(item.value)} onClick={item.toggle}>
-                <div style={toggleDotStyle(item.value)}></div>
-              </div>
-            </div>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontWeight: '500', fontSize: '14px' }}>Toast Notifications</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Show toast alerts when new lost items are detected</div>
+          </div>
+          <div style={toggleStyle(adminAlerts)} onClick={() => {
+            const v = !adminAlerts
+            setAdminAlerts(v)
+            localStorage.setItem('adminAlerts', v)
+          }}>
+            <div style={toggleDotStyle(adminAlerts)}></div>
+          </div>
         </div>
       </div>
-
-      {/* Save Button */}
-      <button onClick={() => {
-        localStorage.setItem('suspectedTime', suspectedTime)
-        localStorage.setItem('confirmedTime', confirmedTime)
-        localStorage.setItem('adminAlerts', adminAlerts)
-        alert('Settings saved!')
-      }} style={{
-        padding: '12px 32px',
-        background: '#22c55e',
-        color: 'white',
-        border: 'none',
-        borderRadius: '8px',
-        fontSize: '14px',
-        fontWeight: '600',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-      }}>
-        💾 Save Settings
-      </button>
     </div>
   )
 }
