@@ -1,5 +1,4 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-// insert useRef to move zoom in the video 
 import { useState, useEffect, useRef, useCallback } from 'react'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
@@ -11,14 +10,10 @@ function Dashboard() {
   const focusCam = location.state?.focusCam || null
   const [modalCam, setModalCam] = useState(null)
   const [zoom, setZoom] = useState(1)
-  // zoom in, zoom out
-  
-  // 실제 백엔드 YAML 설정(Office_Cam, Hallway_Cam)에 맞춘 카메라 리스트
-  //camera list from yaml file 
+
   const [cams, setCams] = useState([])
   const [camStatus, setCamStatus] = useState({})
 
-  // 줌 및 드래그 상태 관리
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const dragStart = useRef({ x: 0, y: 0 })
@@ -45,7 +40,7 @@ function Dashboard() {
 
     const fetchStatus = async () => {
       try {
-        const res = await fetch('http://localhost:5000/api/status')
+        const res = await fetch(`${apiBaseUrl}:${apiPort}/api/status`)
         const data = await res.json()
         setCamStatus(data.pipelines || {})
       } catch (err) {}
@@ -87,20 +82,14 @@ function Dashboard() {
     positionRef.current = { x: 0, y: 0 }
   }, [])
 
-  // 마우스 휠 이벤트 처리 (passive: false를 위해 useEffect에서 직접 등록)
   useEffect(() => {
     const el = videoContainerRef.current
     if (!el) return
-
     const onWheel = (e) => {
-      e.preventDefault() // 페이지 스크롤 방지
-      if (e.deltaY < 0) {
-        handleZoomIn()
-      } else {
-        handleZoomOut()
-      }
+      e.preventDefault()
+      if (e.deltaY < 0) handleZoomIn()
+      else handleZoomOut()
     }
-
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
   }, [modalCam, handleZoomIn, handleZoomOut])
@@ -137,15 +126,15 @@ function Dashboard() {
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         {[
-          { label: 'Suspected Lost Items', key: 'SUSPECTED', color: '#f59e0b' },
-          { label: 'Confirmed Lost Items', key: 'LOST', color: '#ef4444' },
+          { label: <><span style={{ color: '#f59e0b' }}>Suspected</span> Lost Items</>, key: 'SUSPECTED', color: '#f59e0b' },
+          { label: <><span style={{ color: '#ef4444' }}>Confirmed</span> Lost Items</>, key: 'LOST', color: '#ef4444' },
         ].map((card) => (
-          <div key={card.key} style={{ background: 'white', borderRadius: '10px', padding: '16px 20px', border: '1px solid #e5e7eb' }}>
-            <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '10px' }}>{card.label}</div>
+          <div key={card.key} style={{ background: 'var(--bg-card)', borderRadius: '10px', padding: '16px 20px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '10px' }}>{card.label}</div>
             {Object.entries(camStatus).sort(([a], [b]) => a.localeCompare(b)).map(([cam, counts]) => (
-              <div key={cam} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>
+              <div key={cam} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: 'var(--text-secondary)', marginTop: '6px' }}>
                 <span>{cam}</span>
-                <span style={{ fontWeight: '600', color: card.color }}>{counts[card.key] || 0}</span>
+                <span style={{ fontWeight: '700', fontSize: '16px', color: card.color }}>{counts[card.key] || 0}</span>
               </div>
             ))}
           </div>
@@ -179,35 +168,32 @@ function Dashboard() {
                 <span style={{ background: '#22c55e', color: 'white', fontSize: '10px', padding: '2px 6px', borderRadius: '8px' }}>● LIVE</span>
               </div>
             </div>
-            {/* 동적 스트리밍 경로 적용 */}
-            <div style={{ 
-              width: '100%', 
-              aspectRatio: '4 / 3', 
-              background: '#1f2937', 
-              borderRadius: '6px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              overflow: 'hidden' 
+            <div style={{
+              width: '100%',
+              aspectRatio: '4 / 3',
+              background: '#1f2937',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden'
             }}>
-              <img 
-                src={`${apiBaseUrl}:${apiPort}/video_feed/${cam.id}`} 
-                alt={cam.name} 
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+              <img
+                src={`${apiBaseUrl}:${apiPort}/video_feed/${cam.id}`}
+                alt={cam.name}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
             </div>
-            <div style={{ fontSize: '11px', color: cam.statusColor }}>{cam.status} — {cam.msg}</div>
           </div>
         ))}
         {cams.length === 0 && (
-          <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+          <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
             No active camera streams found.
           </div>
         )}
       </div>
 
-
-      {/* 카메라 모달 (확대 보기) */}
+      {/* 카메라 모달 */}
       {modalCam && (
         <div onClick={() => setModalCam(null)} style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
@@ -216,7 +202,6 @@ function Dashboard() {
           <div onClick={e => e.stopPropagation()} style={{
             background: '#111827', borderRadius: '12px', padding: '20px', width: '800px',
           }}>
-            {/* 모달 상단 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ color: 'white', fontWeight: '600', fontSize: '15px' }}>{modalCam.name}</span>
@@ -225,7 +210,6 @@ function Dashboard() {
               <button onClick={() => setModalCam(null)} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '20px', cursor: 'pointer' }}>✕</button>
             </div>
 
-            {/* 영상 영역 */}
             <div
               ref={videoContainerRef}
               onMouseDown={handleMouseDown}
@@ -257,9 +241,7 @@ function Dashboard() {
               </div>
             </div>
 
-            {/* 하단 컨트롤 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: '12px', color: modalCam.statusColor }}>{modalCam.status} — {modalCam.msg}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ color: '#9ca3af', fontSize: '12px' }}>Zoom: {Math.round(zoom * 100)}%</span>
                 <button onClick={handleZoomOut} style={{
