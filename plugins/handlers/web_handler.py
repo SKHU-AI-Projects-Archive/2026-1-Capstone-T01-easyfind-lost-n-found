@@ -1,5 +1,6 @@
 import os
 import re
+import csv
 import cv2
 import time
 import uuid
@@ -237,6 +238,78 @@ def get_obj_img(pipename, obj_id):
     date_str = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
     directory = Path('data/obj-imgs') / pipename / date_str
     return send_from_directory(str(directory.resolve()), f'{obj_id}.jpg')
+
+
+@app.route('/api/log_search')
+def api_log_search():
+    start_str = request.args.get('start')
+    end_str = request.args.get('end')
+    if not start_str:
+        return jsonify({"status": "error", "message": "start required"}), 400
+    try:
+        start_dt = datetime.strptime(start_str, '%Y-%m-%d %H:%M:%S')
+        end_dt = datetime.strptime(end_str, '%Y-%m-%d %H:%M:%S') if end_str else datetime.now()
+    except ValueError:
+        return jsonify({"status": "error", "message": "invalid datetime format (YYYY-MM-DD HH:MM:SS)"}), 400
+
+    logs_root = Path('data/logs')
+    results = []
+    if not logs_root.exists():
+        return jsonify([])
+
+    # {(pipename, obj_id): best_entry} — LOST가 SUSPECTED보다 우선
+    best = {}
+    state_priority = {'LOST': 1, 'SUSPECTED': 0}
+
+    for pipename_dir in sorted(logs_root.iterdir()):
+        if not pipename_dir.is_dir():
+            continue
+        for date_dir in sorted(pipename_dir.iterdir()):
+            if not date_dir.is_dir():
+                continue
+            csv_path = date_dir / 'info.csv'
+            if not csv_path.exists():
+                continue
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                for row in csv.DictReader(f):
+                    try:
+                        row_dt = datetime.strptime(row['time'], '%Y-%m-%d %H:%M:%S')
+                    except (ValueError, KeyError):
+                        continue
+                    if not (start_dt <= row_dt <= end_dt):
+                        continue
+                    key = (pipename_dir.name, row['obj_id'])
+                    state = row.get('state', 'SUSPECTED')
+                    entry = {
+                        'obj_id': row['obj_id'],
+                        'class': row['class'],
+                        'time': row['time'],
+                        'state': state,
+                        'pipename': pipename_dir.name,
+                    }
+                    existing = best.get(key)
+                    if existing is None or state_priority.get(state, 0) > state_priority.get(existing['state'], 0):
+                        best[key] = entry
+
+    results = sorted(best.values(), key=lambda x: x['time'])
+    return jsonify(results)
+
+
+@app.route('/api/scene_img/<pipename>/<obj_id>')
+def get_scene_img(pipename, obj_id):
+    scenes_root = Path('data/scenes') / pipename
+    if not scenes_root.exists():
+        return jsonify({"error": "not found"}), 404
+    for date_dir in sorted(scenes_root.iterdir()):
+        if not date_dir.is_dir():
+            continue
+        for hour_dir in sorted(date_dir.iterdir()):
+            if not hour_dir.is_dir():
+                continue
+            img_path = hour_dir / f'{obj_id}.jpg'
+            if img_path.exists():
+                return send_from_directory(str(hour_dir.resolve()), f'{obj_id}.jpg')
+    return jsonify({"error": "not found"}), 404
 
 
 class WebHandler(BaseHandler):
