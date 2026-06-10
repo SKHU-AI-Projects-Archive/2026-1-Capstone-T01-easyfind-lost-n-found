@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const apiPort = import.meta.env.VITE_API_PORT
@@ -14,6 +14,8 @@ function Layout({ children }) {
     summary: { suspected: 0, confirmed: 0 },
     pipelines: {}
   })
+  const [toasts, setToasts] = useState([])
+  const knownAlertKeys = useRef(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
@@ -45,6 +47,39 @@ function Layout({ children }) {
       clearInterval(timer)
       clearInterval(statusTimer)
     }
+  }, [])
+
+  useEffect(() => {
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl}:${apiPort}/api/alerts`)
+        if (!res.ok) return
+        const data = await res.json()
+
+        if (knownAlertKeys.current === null) {
+          // 초기화 — 페이지 로드 시 기존 알림은 토스트 안 띄움
+          knownAlertKeys.current = new Set(data.map(a => `${a.pipe_name}_${a.track_id}_${a.state}`))
+          return
+        }
+
+        for (const alert of data) {
+          const key = `${alert.pipe_name}_${alert.track_id}_${alert.state}`
+          if (!knownAlertKeys.current.has(key)) {
+            knownAlertKeys.current.add(key)
+            if (localStorage.getItem('adminAlerts') === 'false') continue
+            const id = Date.now() + Math.random()
+            const label = alert.state === 'LOST' ? 'Confirmed Lost' : 'Suspected Lost'
+            const msg = `${alert.type} — ${label} (${alert.pipe_name})`
+            setToasts(t => [...t, { id, msg, state: alert.state }])
+            setTimeout(() => setToasts(t => t.filter(toast => toast.id !== id)), 4000)
+          }
+        }
+      } catch {}
+    }
+
+    fetchAlerts()
+    const alertTimer = setInterval(fetchAlerts, 3000)
+    return () => clearInterval(alertTimer)
   }, [])
 
   const formatTime = (date) => date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -145,6 +180,36 @@ function Layout({ children }) {
         </div>
 
       </div>
+
+      {/* Toast 알림 */}
+      <div style={{
+        position: 'fixed', bottom: '24px', right: '24px',
+        display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 2000,
+      }}>
+        {toasts.map(toast => (
+          <div key={toast.id} style={{
+            background: toast.state === 'LOST' ? '#ef4444' : '#f59e0b',
+            color: 'white',
+            padding: '14px 20px',
+            borderRadius: '12px',
+            boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
+            minWidth: '280px',
+            animation: 'slideIn 0.3s ease',
+            borderLeft: `5px solid ${toast.state === 'LOST' ? '#b91c1c' : '#d97706'}`,
+          }}>
+            <div style={{ fontSize: '12px', fontWeight: '700', opacity: 0.9, marginBottom: '4px' }}>
+              {toast.state === 'LOST' ? '🔴 Confirmed Lost' : '🟡 Suspected Lost'}
+            </div>
+            <div style={{ fontSize: '16px', fontWeight: '800' }}>
+              {toast.msg.split(' — ')[0]}
+            </div>
+            <div style={{ fontSize: '12px', fontWeight: '600', opacity: 0.85, marginTop: '3px' }}>
+              {toast.msg.split(' — ')[1].replace(/.*\((.+)\)/, '$1')}
+            </div>
+          </div>
+        ))}
+      </div>
+
     </div>
   )
 }
