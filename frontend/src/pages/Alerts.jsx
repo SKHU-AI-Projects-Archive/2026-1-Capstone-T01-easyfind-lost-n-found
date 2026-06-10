@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
 
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const apiPort = import.meta.env.VITE_API_PORT
+
 function Alerts() {
   const [filter, setFilter] = useState('All')
   const [alerts, setAlerts] = useState([])
@@ -8,7 +11,7 @@ function Alerts() {
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/alerts')
+        const response = await fetch(`${apiBaseUrl}:${apiPort}/api/alerts`)
         const data = await response.json()
         
         // 백엔드 상태명을 프런트엔드 표시용 텍스트로 변환

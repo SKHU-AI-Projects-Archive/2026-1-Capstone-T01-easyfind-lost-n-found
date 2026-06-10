@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const API = 'http://localhost:5000'
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const apiPort = import.meta.env.VITE_API_PORT
 
 function DetectionHistory() {
   const navigate = useNavigate()
@@ -19,13 +20,13 @@ function DetectionHistory() {
   const [selectedItem, setSelectedItem] = useState(null)
 
   useEffect(() => {
-    fetch(`${API}/api/cameras`).then(r => r.json()).then(d => setCams(d.cameras || [])).catch(() => {})
+    fetch(`${apiBaseUrl}:${apiPort}/api/cameras`).then(r => r.json()).then(d => setCams(d.cameras || [])).catch(() => {})
   }, [])
 
   useEffect(() => {
     const fetchActive = async () => {
       try {
-        const data = await fetch(`${API}/api/detections`).then(r => r.json())
+        const data = await fetch(`${apiBaseUrl}:${apiPort}/api/detections`).then(r => r.json())
         const ids = new Set(data.filter(d => d.state === 'SUSPECTED' || d.state === 'LOST').map(d => `${d.pipe_name}_${d.track_id}`))
         setActiveIds(ids)
       } catch {}
@@ -41,7 +42,7 @@ function DetectionHistory() {
     const end = endDate ? `${endDate} ${endTime ? endTime + ':59' : '23:59:59'}` : ''
     setLoading(true); setMessage(''); setResults([])
     try {
-      const url = `${API}/api/log_search?start=${encodeURIComponent(start)}${end ? `&end=${encodeURIComponent(end)}` : ''}${selectedCam ? `&cam=${encodeURIComponent(selectedCam)}` : ''}`
+      const url = `${apiBaseUrl}:${apiPort}/api/log_search?start=${encodeURIComponent(start)}${end ? `&end=${encodeURIComponent(end)}` : ''}${selectedCam ? `&cam=${encodeURIComponent(selectedCam)}` : ''}`
       const data = await fetch(url).then(r => r.json())
       setResults(data)
       setMessage(data.length === 0 ? '해당 시간대에 탐지된 분실물이 없습니다.' : '')
@@ -124,7 +125,7 @@ function DetectionHistory() {
                   onMouseLeave={e => e.currentTarget.style.background = 'white'}
                 >
                   <img
-                    src={`${API}/api/obj_img/${item.pipename}/${item.obj_id}?date=${item.time.split(' ')[0]}`}
+                    src={`${apiBaseUrl}:${apiPort}/api/obj_img/${item.pipename}/${item.obj_id}?date=${item.time.split(' ')[0]}`}
                     alt="thumbnail"
                     style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '8px', background: '#1a1f2e', flexShrink: 0 }}
                     onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
@@ -156,7 +157,7 @@ function DetectionHistory() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <img
-                  src={`${API}/api/obj_img/${selectedItem.pipename}/${selectedItem.obj_id}?date=${selectedItem.time.split(' ')[0]}`}
+                  src={`${apiBaseUrl}:${apiPort}/api/obj_img/${selectedItem.pipename}/${selectedItem.obj_id}?date=${selectedItem.time.split(' ')[0]}`}
                   alt="thumbnail"
                   style={{ width: '52px', height: '52px', objectFit: 'cover', borderRadius: '8px', background: '#1a1f2e' }}
                   onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex' }}
@@ -190,7 +191,7 @@ function DetectionHistory() {
                 <div>
                   <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', marginBottom: '12px' }}>가져간 장면</div>
                   <img
-                    src={`${API}/api/scene_img/${selectedItem.pipename}/${selectedItem.obj_id}`}
+                    src={`${apiBaseUrl}:${apiPort}/api/scene_img/${selectedItem.pipename}/${selectedItem.obj_id}`}
                     alt="scene"
                     style={{ width: '100%', borderRadius: '8px', background: '#1a1f2e', display: 'block' }}
                     onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}

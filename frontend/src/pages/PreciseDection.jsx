@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 
-const API = 'http://localhost:5000'
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
+const apiPort = import.meta.env.VITE_API_PORT
+
+const API = `${apiBaseUrl}:${apiPort}`
 
 function PreciseDection() {
   const [cams, setCams] = useState([])

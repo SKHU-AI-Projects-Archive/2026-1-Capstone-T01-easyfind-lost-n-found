@@ -83,7 +83,7 @@ git clone https://github.com/sylee-skhu/2026-1-Capstone-T01-easyfind-lost-n-foun
 cd 2026-1-Capstone-T01-easyfind-lost-n-found/frontend
 
 npm install
-npm run dev
+npm run dev -- --host
 ```
 
 개발 서버는 `http://localhost:5173` 에서 열립니다. (백엔드가 `:5000`에 떠 있어야 데이터가 표시됩니다.)
