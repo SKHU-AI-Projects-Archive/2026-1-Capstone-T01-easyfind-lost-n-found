@@ -36,9 +36,9 @@ function DetectionHistory() {
   }, [])
 
   const handleSearch = async () => {
-    if (!startDate || !startTime) { setMessage('시작 날짜와 시간을 입력하세요.'); return }
-    const start = `${startDate} ${startTime}:00`
-    const end = endDate && endTime ? `${endDate} ${endTime}:59` : ''
+    if (!startDate) { setMessage('시작 날짜를 입력하세요.'); return }
+    const start = `${startDate} ${startTime ? startTime + ':00' : '00:00:00'}`
+    const end = endDate ? `${endDate} ${endTime ? endTime + ':59' : '23:59:59'}` : ''
     setLoading(true); setMessage(''); setResults([])
     try {
       const url = `${API}/api/log_search?start=${encodeURIComponent(start)}${end ? `&end=${encodeURIComponent(end)}` : ''}${selectedCam ? `&cam=${encodeURIComponent(selectedCam)}` : ''}`
