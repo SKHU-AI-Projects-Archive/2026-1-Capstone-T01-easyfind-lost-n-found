@@ -19,7 +19,7 @@ function DetectionHistory() {
   const [selectedItem, setSelectedItem] = useState(null)
 
   useEffect(() => {
-    fetch(`${API}/api/log_cams`).then(r => r.json()).then(d => setCams(d.cams || [])).catch(() => {})
+    fetch(`${API}/api/cameras`).then(r => r.json()).then(d => setCams(d.cameras || [])).catch(() => {})
   }, [])
 
   useEffect(() => {

@@ -240,13 +240,6 @@ def get_obj_img(pipename, obj_id):
     return send_from_directory(str(directory.resolve()), f'{obj_id}.jpg')
 
 
-@app.route('/api/log_cams')
-def api_log_cams():
-    """로그가 존재하는 카메라 목록."""
-    logs_root = Path('data/logs')
-    cams = sorted(d.name for d in logs_root.iterdir() if d.is_dir()) if logs_root.exists() else []
-    return jsonify({"cams": cams})
-
 
 @app.route('/api/log_search')
 def api_log_search():
