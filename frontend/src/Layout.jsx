@@ -8,26 +8,36 @@ function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [time, setTime] = useState(new Date())
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
+  const [isConnected, setIsConnected] = useState(false)
   const [status, setStatus] = useState({
     summary: { suspected: 0, confirmed: 0 },
     pipelines: {}
   })
 
   useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
+    localStorage.setItem('theme', isDark ? 'dark' : 'light')
+  }, [isDark])
+
+  useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000)
-    
+
     const fetchStatus = async () => {
       try {
         const res = await fetch(`${apiBaseUrl}:${apiPort}/api/status`)
         if (res.ok) {
           const data = await res.json()
           setStatus(data)
+          setIsConnected(true)
+        } else {
+          setIsConnected(false)
         }
       } catch (err) {
-        console.error('Failed to fetch status:', err)
+        setIsConnected(false)
       }
     }
-    
+
     fetchStatus()
     const statusTimer = setInterval(fetchStatus, 2000)
 
@@ -51,7 +61,7 @@ function Layout({ children }) {
   const connectedCams = Object.keys(status.pipelines).length
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f0f2f5' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-page)' }}>
 
       {/* Top Bar */}
       <div style={{
@@ -65,29 +75,37 @@ function Layout({ children }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontWeight: '600', fontSize: '15px' }}>Lost Item Detection System</span>
-          <span style={{ background: '#22c55e', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px' }}>● LIVE</span>
+          <span style={{ background: isConnected ? '#22c55e' : '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px' }}>
+            {isConnected ? '● LIVE' : '● OFFLINE'}
+          </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Suspected {status.summary.suspected}</span>
           <span style={{ background: '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Confirmed {status.summary.confirmed}</span>
           <div style={{ cursor: 'pointer', position: 'relative' }} onClick={() => navigate('/alerts')}>
-          <span style={{ fontSize: '18px' }}>🔔</span>
-          <span style={{
-            position: 'absolute',
-            top: '-6px',
-            right: '-8px',
-            background: '#ef4444',
-            color: 'white',
-            fontSize: '10px',
-            fontWeight: '600',
-            width: '16px',
-            height: '16px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>{(status.summary.suspected || 0) + (status.summary.confirmed || 0)}</span>
-        </div>
+            <span style={{ fontSize: '18px' }}>🔔</span>
+            <span style={{
+              position: 'absolute',
+              top: '-6px',
+              right: '-8px',
+              background: '#ef4444',
+              color: 'white',
+              fontSize: '10px',
+              fontWeight: '600',
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>{(status.summary.suspected || 0) + (status.summary.confirmed || 0)}</span>
+          </div>
+          <button onClick={() => setIsDark(d => !d)} style={{
+            background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px',
+            color: 'white', fontSize: '14px', cursor: 'pointer', padding: '2px 8px', lineHeight: 1.5,
+          }}>
+            {isDark ? '☀️' : '🌙'}
+          </button>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '13px', fontWeight: '600' }}>{formatTime(time)}</div>
             <div style={{ fontSize: '10px', color: '#9ca3af' }}>{formatDate(time)}</div>
@@ -98,14 +116,14 @@ function Layout({ children }) {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* Sidebar */}
-        <div style={{ width: '200px', background: 'white', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', padding: '12px 0' }}>
+        <div style={{ width: '200px', background: 'var(--bg-sidebar)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', padding: '12px 0' }}>
           {navItems.map((item, i) => (
             <div key={i} onClick={() => navigate(item.path)} style={{
               padding: '10px 20px',
               fontSize: '13px',
-              color: location.pathname === item.path ? '#1a1f2e' : '#6b7280',
+              color: location.pathname === item.path ? 'var(--text-primary)' : 'var(--text-secondary)',
               fontWeight: location.pathname === item.path ? '600' : '400',
-              background: location.pathname === item.path ? '#f0f2f5' : 'transparent',
+              background: location.pathname === item.path ? 'var(--bg-page)' : 'transparent',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -116,7 +134,7 @@ function Layout({ children }) {
               {item.label}
             </div>
           ))}
-          <div style={{ marginTop: 'auto', padding: '12px 20px', fontSize: '11px', color: '#9ca3af' }}>
+          <div style={{ marginTop: 'auto', padding: '12px 20px', fontSize: '11px', color: 'var(--text-muted)' }}>
             <div>Camera {connectedCams} connected</div>
           </div>
         </div>

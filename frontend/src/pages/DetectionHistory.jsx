@@ -69,10 +69,10 @@ function DetectionHistory() {
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
       <h2 style={{ fontSize: '22px', fontWeight: '600', margin: '0 0 4px' }}>Detection History</h2>
-      <p style={{ color: '#6b7280', fontSize: '13px', margin: '0 0 20px' }}>분실 시간대를 지정해 탐지된 분실물을 조회합니다.</p>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>분실 시간대를 지정해 탐지된 분실물을 조회합니다.</p>
 
       {/* 시간 범위 입력 */}
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr auto', gap: '12px', alignItems: 'flex-end' }}>
           <Field label="From Date">
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={inp} />
@@ -102,7 +102,7 @@ function DetectionHistory() {
       </div>
 
       {message && (
-        <div style={{ padding: '10px 16px', borderRadius: '8px', background: '#f3f4f6', color: '#374151', fontSize: '14px', marginBottom: '16px' }}>
+        <div style={{ padding: '10px 16px', borderRadius: '8px', background: 'var(--bg-message)', color: 'var(--text-body)', fontSize: '14px', marginBottom: '16px' }}>
           {message}
         </div>
       )}
@@ -110,19 +110,19 @@ function DetectionHistory() {
       {/* 결과 */}
       {results.length > 0 && (
         <div>
-          <div style={{ fontSize: '13px', color: '#6b7280', marginBottom: '12px' }}>총 {results.length}건 탐지</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>총 {results.length}건 탐지</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {results.map((item, i) => {
               const s = statusStyle[getItemStatus(item)]
               return (
                 <div key={i} onClick={() => setSelectedItem(item)} style={{
-                  background: 'white', border: '1px solid #e5e7eb',
+                  background: 'var(--bg-card)', border: '1px solid var(--border-color)',
                   borderLeft: `4px solid ${s.border}`,
                   borderRadius: '0 10px 10px 0', padding: '14px 20px',
                   display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer',
                 }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-subtle)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
                 >
                   <img
                     src={`${apiBaseUrl}:${apiPort}/api/obj_img/${item.pipename}/${item.obj_id}?date=${item.time.split(' ')[0]}`}
@@ -133,7 +133,7 @@ function DetectionHistory() {
                   <div style={{ width: '52px', height: '52px', background: '#1a1f2e', borderRadius: '8px', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#6b7280', flexShrink: 0 }}>IMG</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>{item.class} (ID: {item.obj_id})</div>
-                    <div style={{ fontSize: '12px', color: '#6b7280' }}>{item.pipename} · {item.time}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{item.pipename} · {item.time}</div>
                   </div>
                   <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '10px', fontWeight: '600', background: s.bg, color: s.color }}>
                     {s.label}
@@ -152,7 +152,7 @@ function DetectionHistory() {
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: 'white', borderRadius: '12px', padding: '28px', width: '500px', maxHeight: '85vh', overflow: 'auto',
+            background: 'var(--bg-card)', borderRadius: '12px', padding: '28px', width: '500px', maxHeight: '85vh', overflow: 'auto',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -165,10 +165,10 @@ function DetectionHistory() {
                 <div style={{ width: '52px', height: '52px', background: '#1a1f2e', borderRadius: '8px', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#6b7280' }}>IMG</div>
                 <div>
                   <div style={{ fontWeight: '600', fontSize: '16px' }}>{selectedItem.class} (ID: {selectedItem.obj_id})</div>
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{selectedItem.pipename} · {selectedItem.time}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>{selectedItem.pipename} · {selectedItem.time}</div>
                 </div>
               </div>
-              <button onClick={() => setSelectedItem(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#6b7280' }}>✕</button>
+              <button onClick={() => setSelectedItem(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-secondary)' }}>✕</button>
             </div>
 
             {(() => {
@@ -189,14 +189,14 @@ function DetectionHistory() {
               )
               return (
                 <div>
-                  <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: '600', marginBottom: '12px' }}>가져간 장면</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '12px' }}>가져간 장면</div>
                   <img
                     src={`${apiBaseUrl}:${apiPort}/api/scene_img/${selectedItem.pipename}/${selectedItem.obj_id}`}
                     alt="scene"
                     style={{ width: '100%', borderRadius: '8px', background: '#1a1f2e', display: 'block' }}
                     onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
                   />
-                  <div style={{ display: 'none', padding: '40px', textAlign: 'center', background: '#f3f4f6', borderRadius: '8px', color: '#9ca3af', fontSize: '13px' }}>
+                  <div style={{ display: 'none', padding: '40px', textAlign: 'center', background: 'var(--bg-subtle)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
                     장면 이미지 없음
                   </div>
                 </div>
@@ -204,8 +204,8 @@ function DetectionHistory() {
             })()}
 
             <button onClick={() => setSelectedItem(null)} style={{
-              width: '100%', marginTop: '12px', padding: '10px', background: 'white', color: '#6b7280',
-              border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px', cursor: 'pointer',
+              width: '100%', marginTop: '12px', padding: '10px', background: 'var(--bg-card)', color: 'var(--text-secondary)',
+              border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '13px', cursor: 'pointer',
             }}>닫기</button>
           </div>
         </div>
@@ -217,12 +217,16 @@ function DetectionHistory() {
 function Field({ label, children }) {
   return (
     <div>
-      <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>{label}</div>
+      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>{label}</div>
       {children}
     </div>
   )
 }
 
-const inp = { width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }
+const inp = {
+  width: '100%', padding: '8px 12px', border: '1px solid var(--border-color)',
+  borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box',
+  background: 'var(--bg-input)', color: 'var(--text-primary)'
+}
 
 export default DetectionHistory

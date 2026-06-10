@@ -28,7 +28,6 @@ function PreciseDection() {
   useEffect(() => { jobRef.current = jobId }, [jobId])
   useEffect(() => { runRef.current = running }, [running])
 
-  // 검색 가능한 카메라(아카이브 보유) 목록
   useEffect(() => {
     fetch(`${API}/api/archive_cams`)
       .then(r => r.json())
@@ -39,7 +38,6 @@ function PreciseDection() {
       .catch(() => {})
   }, [])
 
-  // 진행 중 잡 폴링
   useEffect(() => {
     if (!jobId) return
     const iv = setInterval(async () => {
@@ -59,7 +57,6 @@ function PreciseDection() {
     return () => clearInterval(iv)
   }, [jobId])
 
-  // 페이지 이탈(unmount) 시 진행 중 검색 자동 중지
   useEffect(() => {
     return () => {
       if (jobRef.current && runRef.current) {
@@ -110,12 +107,12 @@ function PreciseDection() {
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
       <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '8px' }}>Precise Detection</h2>
-      <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '24px' }}>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
         과거 영상에서 분실물을 소급 검색합니다. CCTV · 시간 · 찾을 물건을 입력하세요. (한글/영어 모두 가능)
       </p>
 
       {/* 필터 */}
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px 20px', marginBottom: '20px' }}>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
           <Field label="Date">
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={inp} />
@@ -157,17 +154,17 @@ function PreciseDection() {
       {/* 진행률 */}
       {(running || progress > 0) && (
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ height: '8px', background: '#e5e7eb', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ height: '8px', background: 'var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
             <div style={{ width: `${Math.round(progress * 100)}%`, height: '100%', background: '#3b82f6', transition: 'width 0.3s' }} />
           </div>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             {Math.round(progress * 100)}% · status: {status} · 발견 {hitCount}장
           </div>
         </div>
       )}
 
       {message && (
-        <div style={{ padding: '10px 16px', borderRadius: '8px', background: '#f3f4f6', color: '#374151', fontSize: '14px', marginBottom: '16px' }}>
+        <div style={{ padding: '10px 16px', borderRadius: '8px', background: 'var(--bg-message)', color: 'var(--text-body)', fontSize: '14px', marginBottom: '16px' }}>
           {message}
         </div>
       )}
@@ -180,17 +177,17 @@ function PreciseDection() {
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
             {groups.map((g, i) => (
-              <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: '10px', overflow: 'hidden', background: 'white' }}>
+              <div key={i} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden', background: 'var(--bg-card)' }}>
                 <img src={`${API}/search_thumb/${g.peak_thumb}`} alt="hit"
                   style={{ width: '100%', height: '160px', objectFit: 'cover', display: 'block', background: '#000' }} />
                 <div style={{ padding: '12px' }}>
                   <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}>
                     {fmt(g.start_ts)}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                     ~ {fmt(g.end_ts)}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#374151', marginTop: '6px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-body)', marginTop: '6px' }}>
                     {g.count}장 · 신뢰도 {(g.peak_conf * 100).toFixed(0)}%
                   </div>
                 </div>
@@ -203,12 +200,16 @@ function PreciseDection() {
   )
 }
 
-const inp = { width: '100%', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }
+const inp = {
+  width: '100%', padding: '8px 12px', border: '1px solid var(--border-color)',
+  borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box',
+  background: 'var(--bg-input)', color: 'var(--text-primary)'
+}
 
 function Field({ label, children }) {
   return (
     <div>
-      <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>{label}</div>
+      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>{label}</div>
       {children}
     </div>
   )
