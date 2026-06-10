@@ -203,43 +203,6 @@ function Dashboard() {
         )}
       </div>
 
-      {/* Right Panel (Alerts & Timeline) */}
-      <div style={{ position: 'fixed', right: 0, top: '48px', width: '260px', background: 'white', borderLeft: '1px solid #e5e7eb', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', height: 'calc(100vh - 48px)', overflow: 'auto' }}>
-        <div>
-          <div style={{ fontSize: '11px', fontWeight: '600', color: '#6b7280', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Real-time Alerts</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {[
-              { item: 'Luggage', cam: 'CAM-D3', time: '15:40', status: 'Confirmed', color: '#ef4444', bg: '#fef2f2' },
-              { item: 'Backpack', cam: 'CAM-A2', time: '15:42', status: 'Suspected', color: '#f59e0b', bg: '#fffbeb' },
-            ].map((alert, i) => (
-              <div key={i} style={{ border: `1px solid #e5e7eb`, borderLeft: `3px solid ${alert.color}`, borderRadius: '0 8px 8px 0', padding: '10px', background: alert.bg }}>
-                <div style={{ fontWeight: '600', fontSize: '13px' }}>{alert.item}</div>
-                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>{alert.cam} · {alert.time}</div>
-                <span style={{ fontSize: '11px', background: alert.color, color: 'white', padding: '2px 8px', borderRadius: '8px', display: 'inline-block', marginTop: '6px' }}>{alert.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div style={{ fontSize: '11px', fontWeight: '600', color: '#6b7280', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Detection Timeline</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {[
-              { time: '15:38', text: 'Luggage + person linked', color: '#9ca3af' },
-              { time: '15:39', text: 'Person left, object fixed', color: '#9ca3af' },
-              { time: '15:39', text: 'Suspected — timer started', color: '#f59e0b' },
-              { time: '15:40', text: 'Confirmed lost item', color: '#ef4444' },
-              { time: '15:42', text: 'Admin alert sent', color: '#3b82f6' },
-            ].map((tl, i) => (
-              <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '12px', color: '#6b7280' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: tl.color, flexShrink: 0 }}></div>
-                <span style={{ color: tl.color, fontWeight: '500', minWidth: '36px' }}>{tl.time}</span>
-                <span>{tl.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* 카메라 모달 (확대 보기) */}
       {modalCam && (
