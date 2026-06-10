@@ -35,15 +35,15 @@ class objLogger:
         self.file = open(csv_path, 'a', newline='', encoding='utf-8')
         self.writer = csv.writer(self.file)
         if is_new:
-            self.writer.writerow(['obj_id', 'class', 'time'])
+            self.writer.writerow(['obj_id', 'class', 'time', 'state'])
         self.current_date = date_str
 
-    def save(self, obj_id, obj_info):
+    def save(self, obj_id, obj_info, state='SUSPECTED'):
         date_str = datetime.now().strftime('%Y-%m-%d')
         self._open_for_date(date_str)
         cls = obj_info.get('class')
         timestamp = obj_info.get('last_seen(time)')
-        self.writer.writerow([obj_id, cls, timestamp])
+        self.writer.writerow([obj_id, cls, timestamp, state])
         self.file.flush()
 
     def close(self):
@@ -221,6 +221,7 @@ class abandonedObject:
                         lost_lapse = frame_id - susp_start
                         if lost_lapse >= self.lost_threshold and obj_info['state'] == objectState.SUSPECTED:
                             obj_info['state'] = objectState.LOST
+                            self.logger.save(obj_id, obj_info, state='LOST')
                             print(f'{obj_id} : turn LOST')  
 
             # 움직임이 있는 경우     
