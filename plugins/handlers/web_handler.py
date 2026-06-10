@@ -324,6 +324,7 @@ class WebHandler(BaseHandler):
         self.show_info = config.get('show_info', True)
         self.draw_dets = config.get('draw_detections', True)
         self.draw_tracks = config.get('draw_tracks', True)
+        self.draw_person = config.get('draw_person', False)
 
         with WebHandler._server_lock:
             if not WebHandler._server_started:
@@ -406,6 +407,10 @@ class WebHandler(BaseHandler):
                     cid = int(trk[5])
                 except (ValueError, TypeError):
                     cid = trk[5]
+                
+                if not self.draw_person and cid == 'person':
+                    continue
+
                 state = trk[6] if len(trk) > 6 else None
                 color = self.class_color(cid, state)
                 label = f"ID:{tid}" if not state else f"ID:{tid} {state}"

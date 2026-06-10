@@ -97,6 +97,7 @@ _handler_defaults:
     view_height: 960
     draw_detections: true
     draw_tracks: true
+    draw_person: false
     show_info: true
 
   FileLogHandler:
