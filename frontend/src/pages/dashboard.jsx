@@ -146,6 +146,7 @@ function Dashboard() {
     try {
       await fetch(`${apiBaseUrl}:${launcherPort}/api/launcher/stop`, { method: 'POST' })
       setCams([])
+      setCamStatus({})
       setIsRunning(false)
     } finally {
       setActionLoading(false)
