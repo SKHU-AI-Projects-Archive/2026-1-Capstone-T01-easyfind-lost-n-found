@@ -426,8 +426,8 @@ class WebHandler(BaseHandler):
                 state = trk[6] if len(trk) > 6 else None
                 color = self.class_color(cid, state)
                 label = f"ID:{tid}" if not state else f"ID:{tid} {state}"
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 1)
-                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.3, color, 1)
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
         ret, buffer = cv2.imencode('.jpg', frame)
         if ret:
