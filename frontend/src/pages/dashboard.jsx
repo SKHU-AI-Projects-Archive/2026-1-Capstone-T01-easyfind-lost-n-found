@@ -327,7 +327,7 @@ function Dashboard() {
           background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#111827', borderRadius: '12px', padding: '20px', width: '800px',
+            background: '#111827', borderRadius: '12px', padding: '20px', width: '90vw', maxWidth: '1400px',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -346,7 +346,7 @@ function Dashboard() {
               style={{
                 background: '#1f2937',
                 borderRadius: '8px',
-                height: '380px',
+                height: '70vh',
                 overflow: 'hidden',
                 marginBottom: '12px',
                 display: 'flex',
