@@ -48,6 +48,7 @@ CCTV 영상에서 **방치·유실된 물건을 실시간으로 탐지**하고, 
 ```
 .
 ├── main.py                     # 진입점 — 프로세스 조립 및 실행
+├── launcher.py                 # 웹에서 main.py 실행/정지 제어 (포트 5001)
 ├── configs/                    # 파이프라인 설정 (.yaml)
 │   ├── default_config.yaml     #   모든 파라미터 기본값 (실험 config가 deep-merge)
 │   ├── multi_cam.yaml          #   웹캠 상시 감시 + 소급 검색 (메인)
@@ -108,12 +109,19 @@ npm run dev
 
 ## 실행
 
+### 직접 실행
 ```shell
 # 웹캠 상시 감시 + 소급 검색 (메인)
 python main.py -c configs/multi_cam.yaml
 
 # 비디오 기반 검색 데모
 python main.py -c configs/lostfound_demo.yaml
+```
+
+### 웹 대시보드에서 실행/정지 (launcher 사용)
+`launcher.py`를 먼저 실행해두면 웹 대시보드 Monitoring 페이지에서 config 파일을 선택해 시스템을 시작·정지할 수 있습니다.
+```shell
+python launcher.py   # 포트 5001에서 대기
 ```
 
 실행 후 대시보드는 `http://localhost:5000/`, 프론트엔드 개발 서버는 `http://localhost:5173/`(Vite 기본)에서 확인합니다.
