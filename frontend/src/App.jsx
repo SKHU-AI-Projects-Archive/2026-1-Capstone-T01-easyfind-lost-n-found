@@ -5,9 +5,11 @@ import PreciseDection from './pages/PreciseDection'
 import Alerts from './pages/Alerts'
 import Settings from './pages/Settings'
 import Layout from './Layout'
+import { LanguageProvider } from './LanguageContext'
 
 function App() {
   return (
+    <LanguageProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -18,6 +20,7 @@ function App() {
         <Route path="/settings" element={<Layout><Settings /></Layout>} />
       </Routes>
     </BrowserRouter>
+    </LanguageProvider>
   )
 }
 

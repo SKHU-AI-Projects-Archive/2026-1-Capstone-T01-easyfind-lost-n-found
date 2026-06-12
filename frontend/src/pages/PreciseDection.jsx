@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLanguage } from '../LanguageContext'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const apiPort = import.meta.env.VITE_API_PORT
@@ -6,6 +7,7 @@ const apiPort = import.meta.env.VITE_API_PORT
 const API = `${apiBaseUrl}:${apiPort}`
 
 function PreciseDection() {
+  const { t } = useLanguage()
   const [cams, setCams] = useState([])
   const [filterDate, setFilterDate] = useState('')
   const [filterTimeStart, setFilterTimeStart] = useState('')
@@ -50,7 +52,7 @@ function PreciseDection() {
         if (s.done) {
           clearInterval(iv)
           setRunning(false)
-          setMessage(`완료: ${(s.groups || []).length}개 구간에서 발견 (총 ${(s.hits || []).length}장)`)
+          setMessage(t('searchDone', (s.groups || []).length, (s.hits || []).length))
         }
       } catch { /* ignore */ }
     }, 1000)
@@ -73,13 +75,13 @@ function PreciseDection() {
   const fmt = (ts) => new Date(ts * 1000).toLocaleString()
 
   const handleSearch = async () => {
-    if (!filterCam) { setMessage('카메라를 선택하세요.'); return }
-    if (!filterDate) { setMessage('날짜를 선택하세요.'); return }
-    if (!filterPrompt.trim()) { setMessage('찾을 물건을 입력하세요.'); return }
+    if (!filterCam) { setMessage(t('selectCamera')); return }
+    if (!filterDate) { setMessage(t('selectDate')); return }
+    if (!filterPrompt.trim()) { setMessage(t('enterObject')); return }
 
     const start_ts = toEpoch(filterDate, filterTimeStart, '00:00')
     const end_ts = toEpoch(filterDate, filterTimeEnd, '23:59')
-    setGroups([]); setProgress(0); setHitCount(0); setMessage('검색을 시작합니다...')
+    setGroups([]); setProgress(0); setHitCount(0); setMessage('')
     try {
       const r = await fetch(`${API}/api/search`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -87,55 +89,55 @@ function PreciseDection() {
       }).then(res => res.json())
       if (r.job_id) {
         setJobId(r.job_id); setRunning(true); setPaused(false)
-        setMessage(`검색 중... (해석된 프롬프트: "${r.prompt}")`)
+        setMessage(t('searchStarted', r.prompt))
       } else {
-        setMessage(`오류: ${r.message || '시작 실패'}`)
+        setMessage(t('searchError', r.message))
       }
     } catch (e) {
-      setMessage('서버 연결 실패')
+      setMessage(t('serverError'))
     }
   }
 
   const control = async (action) => {
     if (!jobId) return
     await fetch(`${API}/api/search/${jobId}/${action}`, { method: 'POST' }).catch(() => {})
-    if (action === 'stop') { setRunning(false); setMessage('검색을 중지했습니다.') }
+    if (action === 'stop') { setRunning(false); setMessage(t('searchStopped')) }
     if (action === 'pause') { setPaused(true) }
     if (action === 'resume') { setPaused(false) }
   }
 
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
-      <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '8px' }}>Precise Detection</h2>
+      <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '8px' }}>{t('preciseDetection')}</h2>
       <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-        과거 영상에서 분실물을 소급 검색합니다. CCTV · 시간 · 찾을 물건을 입력하세요. (한글/영어 모두 가능)
+        {t('preciseDetectionDesc')}
       </p>
 
       {/* 필터 */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '12px' }}>
-          <Field label="Date">
+          <Field label={t('date')}>
             <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={inp} />
           </Field>
-          <Field label="Time From">
+          <Field label={t('timeFrom')}>
             <input type="time" value={filterTimeStart} onChange={e => setFilterTimeStart(e.target.value)} style={inp} />
           </Field>
-          <Field label="Time To">
+          <Field label={t('timeTo')}>
             <input type="time" value={filterTimeEnd} onChange={e => setFilterTimeEnd(e.target.value)} style={inp} />
           </Field>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-          <Field label="Camera">
+          <Field label={t('cameraLabel')}>
             <select value={filterCam} onChange={e => setFilterCam(e.target.value)} style={inp}>
-              {cams.length === 0 && <option value="">(아카이브 없음)</option>}
+              {cams.length === 0 && <option value="">{t('noArchive')}</option>}
               {cams.map((c, i) => <option key={i} value={c}>{c}</option>)}
             </select>
           </Field>
-          <Field label="Object (찾을 물건)">
-            <input type="text" placeholder="예: 검은 가방 / red backpack" value={filterPrompt}
+          <Field label={t('objectLabel')}>
+            <input type="text" placeholder={t('objectPlaceholder')} value={filterPrompt}
               onChange={e => setFilterPrompt(e.target.value)} style={inp} />
           </Field>
-          <Field label="Interval (sec)">
+          <Field label={t('intervalLabel')}>
             <input type="number" min="0" value={interval} onChange={e => setIntervalSec(e.target.value)} style={inp} />
           </Field>
         </div>
@@ -144,11 +146,11 @@ function PreciseDection() {
       {/* 컨트롤 */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button onClick={handleSearch} disabled={running} style={btn(running ? '#9ca3af' : '#1a1f2e')}>
-          {running ? '검색 중...' : '탐색 시작'}
+          {running ? t('searching2') : t('startSearch')}
         </button>
-        {running && !paused && <button onClick={() => control('pause')} style={btn('#f59e0b')}>일시정지</button>}
-        {running && paused && <button onClick={() => control('resume')} style={btn('#22c55e')}>재개</button>}
-        {running && <button onClick={() => control('stop')} style={btn('#ef4444')}>중지</button>}
+        {running && !paused && <button onClick={() => control('pause')} style={btn('#f59e0b')}>{t('pause')}</button>}
+        {running && paused && <button onClick={() => control('resume')} style={btn('#22c55e')}>{t('resume')}</button>}
+        {running && <button onClick={() => control('stop')} style={btn('#ef4444')}>{t('stop')}</button>}
       </div>
 
       {/* 진행률 */}
@@ -158,7 +160,7 @@ function PreciseDection() {
             <div style={{ width: `${Math.round(progress * 100)}%`, height: '100%', background: '#3b82f6', transition: 'width 0.3s' }} />
           </div>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {Math.round(progress * 100)}% · status: {status} · 발견 {hitCount}장
+            {Math.round(progress * 100)}% · status: {status} · {t('hits', hitCount)}
           </div>
         </div>
       )}
@@ -173,7 +175,7 @@ function PreciseDection() {
       {groups.length > 0 && (
         <div>
           <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
-            발견 구간 ({groups.length})
+            {t('foundGroups', groups.length)}
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
             {groups.map((g, i) => (
@@ -188,7 +190,7 @@ function PreciseDection() {
                     ~ {fmt(g.end_ts)}
                   </div>
                   <div style={{ fontSize: '12px', color: 'var(--text-body)', marginTop: '6px' }}>
-                    {g.count}장 · 신뢰도 {(g.peak_conf * 100).toFixed(0)}%
+                    {t('hits', g.count)} · {t('confidence', (g.peak_conf * 100).toFixed(0))}
                   </div>
                 </div>
               </div>

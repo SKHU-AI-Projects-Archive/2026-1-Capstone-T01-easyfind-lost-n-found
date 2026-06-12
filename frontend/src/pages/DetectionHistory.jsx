@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useLanguage } from '../LanguageContext'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const apiPort = import.meta.env.VITE_API_PORT
 
 function DetectionHistory() {
   const navigate = useNavigate()
+  const { t } = useLanguage()
   const today = new Date().toISOString().split('T')[0]
   const [startDate, setStartDate] = useState(today)
   const [startTime, setStartTime] = useState('')
@@ -37,7 +39,7 @@ function DetectionHistory() {
   }, [])
 
   const handleSearch = async () => {
-    if (!startDate) { setMessage('시작 날짜를 입력하세요.'); return }
+    if (!startDate) { setMessage(t('enterStartDate')); return }
     const start = `${startDate} ${startTime ? startTime + ':00' : '00:00:00'}`
     const end = endDate ? `${endDate} ${endTime ? endTime + ':59' : '23:59:59'}` : ''
     setLoading(true); setMessage(''); setResults([])
@@ -45,9 +47,9 @@ function DetectionHistory() {
       const url = `${apiBaseUrl}:${apiPort}/api/log_search?start=${encodeURIComponent(start)}${end ? `&end=${encodeURIComponent(end)}` : ''}${selectedCam ? `&cam=${encodeURIComponent(selectedCam)}` : ''}`
       const data = await fetch(url).then(r => r.json())
       setResults(data)
-      setMessage(data.length === 0 ? '해당 시간대에 탐지된 분실물이 없습니다.' : '')
+      setMessage(data.length === 0 ? t('noResults') : '')
     } catch {
-      setMessage('서버 연결 실패')
+      setMessage(t('serverError'))
     }
     setLoading(false)
   }
@@ -61,34 +63,34 @@ function DetectionHistory() {
   }
 
   const statusStyle = {
-    active:          { bg: '#f0fdf4', color: '#16a34a', border: '#22c55e', label: '현재 감지 중' },
-    before_confirmed:{ bg: '#fffbeb', color: '#d97706', border: '#f59e0b', label: 'Confirmed 이전 사라짐' },
-    disappeared:     { bg: '#fef2f2', color: '#ef4444', border: '#ef4444', label: '사라짐' },
+    active:          { bg: '#f0fdf4', color: '#16a34a', border: '#22c55e', label: t('statusActive') },
+    before_confirmed:{ bg: '#fffbeb', color: '#d97706', border: '#f59e0b', label: t('statusBeforeConfirmed') },
+    disappeared:     { bg: '#fef2f2', color: '#ef4444', border: '#ef4444', label: t('statusDisappeared') },
   }
 
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
-      <h2 style={{ fontSize: '22px', fontWeight: '600', margin: '0 0 4px' }}>Detection History</h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>분실 시간대를 지정해 탐지된 분실물을 조회합니다.</p>
+      <h2 style={{ fontSize: '22px', fontWeight: '600', margin: '0 0 4px' }}>{t('detectionHistory')}</h2>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>{t('detectionHistoryDesc')}</p>
 
       {/* 시간 범위 입력 */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr auto', gap: '12px', alignItems: 'flex-end' }}>
-          <Field label="From Date">
+          <Field label={t('fromDate')}>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={inp} />
           </Field>
-          <Field label="From Time">
+          <Field label={t('fromTime')}>
             <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} style={inp} />
           </Field>
-          <Field label="To Date (optional)">
+          <Field label={t('toDate')}>
             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={inp} />
           </Field>
-          <Field label="To Time (optional)">
+          <Field label={t('toTime')}>
             <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} style={inp} />
           </Field>
-          <Field label="Camera (optional)">
+          <Field label={t('camera')}>
             <select value={selectedCam} onChange={e => setSelectedCam(e.target.value)} style={inp}>
-              <option value="">All</option>
+              <option value="">{t('all')}</option>
               {cams.map((c, i) => <option key={i} value={c}>{c}</option>)}
             </select>
           </Field>
@@ -96,7 +98,7 @@ function DetectionHistory() {
             background: loading ? '#9ca3af' : '#1a1f2e', color: 'white', padding: '8px 20px',
             border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: loading ? 'default' : 'pointer', height: '38px'
           }}>
-            {loading ? '조회 중...' : '조회'}
+            {loading ? t('searching') : t('search')}
           </button>
         </div>
       </div>
@@ -110,7 +112,7 @@ function DetectionHistory() {
       {/* 결과 */}
       {results.length > 0 && (
         <div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>총 {results.length}건 탐지</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>{t('totalDetected', results.length)}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {results.map((item, i) => {
               const s = statusStyle[getItemStatus(item)]
@@ -175,21 +177,21 @@ function DetectionHistory() {
               const status = getItemStatus(selectedItem)
               if (status === 'active') return (
                 <div>
-                  <div style={{ fontSize: '13px', color: '#16a34a', fontWeight: '600', marginBottom: '12px' }}>● 현재 카메라에서 감지 중</div>
+                  <div style={{ fontSize: '13px', color: '#16a34a', fontWeight: '600', marginBottom: '12px' }}>{t('currentlyDetected')}</div>
                   <button onClick={() => { setSelectedItem(null); navigate('/dashboard', { state: { focusCam: selectedItem.pipename } }) }} style={{
                     width: '100%', padding: '10px', background: '#1a1f2e', color: 'white',
                     border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
-                  }}>📹 카메라로 이동 ({selectedItem.pipename})</button>
+                  }}>{t('goToCamera', selectedItem.pipename)}</button>
                 </div>
               )
               if (status === 'before_confirmed') return (
                 <div style={{ padding: '20px', textAlign: 'center', background: '#fffbeb', borderRadius: '8px', color: '#d97706', fontSize: '13px', fontWeight: '600' }}>
-                  Confirmed 이전에 사라짐
+                  {t('disappearedBeforeConfirmed')}
                 </div>
               )
               return (
                 <div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '12px' }}>가져간 장면</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '12px' }}>{t('takenScene')}</div>
                   <img
                     src={`${apiBaseUrl}:${apiPort}/api/scene_img/${selectedItem.pipename}/${selectedItem.obj_id}`}
                     alt="scene"
@@ -197,7 +199,7 @@ function DetectionHistory() {
                     onError={e => { e.target.onerror = null; e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
                   />
                   <div style={{ display: 'none', padding: '40px', textAlign: 'center', background: 'var(--bg-subtle)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                    장면 이미지 없음
+                    {t('noSceneImage')}
                   </div>
                 </div>
               )
@@ -206,7 +208,7 @@ function DetectionHistory() {
             <button onClick={() => setSelectedItem(null)} style={{
               width: '100%', marginTop: '12px', padding: '10px', background: 'var(--bg-card)', color: 'var(--text-secondary)',
               border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '13px', cursor: 'pointer',
-            }}>닫기</button>
+            }}>{t('close')}</button>
           </div>
         </div>
       )}

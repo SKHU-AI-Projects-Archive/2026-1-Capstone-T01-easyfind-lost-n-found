@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useLanguage } from '../LanguageContext'
 
 function Settings() {
+  const { t, lang, setLanguage } = useLanguage()
   const [adminAlerts, setAdminAlerts] = useState(() => localStorage.getItem('adminAlerts') !== 'false')
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
 
@@ -68,16 +70,16 @@ function Settings() {
         padding: '32px',
       }}>
 
-        <h2 style={{ fontSize: '26px', fontWeight: '700', margin: '0 0 6px' }}>System Settings</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '15px', margin: '0 0 28px' }}>Configure system preferences</p>
+        <h2 style={{ fontSize: '26px', fontWeight: '700', margin: '0 0 6px' }}>{t('systemSettings')}</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '15px', margin: '0 0 28px' }}>{t('configurePrefs')}</p>
 
         {/* Appearance */}
         <div style={innerCardStyle}>
-          <div style={sectionLabelStyle}>Appearance</div>
+          <div style={sectionLabelStyle}>{t('appearance')}</div>
           <div style={rowStyle}>
             <div>
-              <div style={{ fontWeight: '600', fontSize: '16px' }}>Dark Mode</div>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>Switch between light and dark theme</div>
+              <div style={{ fontWeight: '600', fontSize: '16px' }}>{t('darkMode')}</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>{t('darkModeDesc')}</div>
             </div>
             <div style={toggleStyle(isDark)} onClick={toggleTheme}>
               <div style={toggleDotStyle(isDark)}></div>
@@ -85,13 +87,40 @@ function Settings() {
           </div>
         </div>
 
-        {/* Notifications */}
-        <div style={{ ...innerCardStyle, marginBottom: 0 }}>
-          <div style={sectionLabelStyle}>Notifications</div>
+        {/* Language */}
+        <div style={innerCardStyle}>
+          <div style={sectionLabelStyle}>{t('language')}</div>
           <div style={rowStyle}>
             <div>
-              <div style={{ fontWeight: '600', fontSize: '16px' }}>Toast Notifications</div>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>Show toast alerts when new lost items are detected</div>
+              <div style={{ fontWeight: '600', fontSize: '16px' }}>{t('displayLanguage')}</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>{t('displayLanguageDesc')}</div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {[{ code: 'en', label: 'English' }, { code: 'ko', label: '한국어' }].map(({ code, label }) => (
+                <button key={code} onClick={() => setLanguage(code)} style={{
+                  padding: '6px 16px',
+                  borderRadius: '8px',
+                  border: `1px solid ${lang === code ? '#1a1f2e' : 'var(--border-color)'}`,
+                  background: lang === code ? '#1a1f2e' : 'var(--bg-input)',
+                  color: lang === code ? 'white' : 'var(--text-primary)',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Notifications */}
+        <div style={{ ...innerCardStyle, marginBottom: 0 }}>
+          <div style={sectionLabelStyle}>{t('notifications')}</div>
+          <div style={rowStyle}>
+            <div>
+              <div style={{ fontWeight: '600', fontSize: '16px' }}>{t('toastNotifications')}</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '3px' }}>{t('toastNotificationsDesc')}</div>
             </div>
             <div style={toggleStyle(adminAlerts)} onClick={() => {
               const v = !adminAlerts

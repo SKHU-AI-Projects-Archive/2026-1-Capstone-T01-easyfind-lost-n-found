@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useLanguage } from '../LanguageContext'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const apiPort = import.meta.env.VITE_API_PORT
 
 function Alerts() {
-  const [filter, setFilter] = useState('All')
+  const { t } = useLanguage()
+  const [filter, setFilter] = useState('all')
   const [alerts, setAlerts] = useState([])
 
   useEffect(() => {
@@ -18,7 +20,7 @@ function Alerts() {
           track_id: item.track_id,
           type: item.type,
           cam: item.pipe_name,
-          location: 'Detected Area',
+          location: t('detectedArea'),
           date: item.first_seen.split(' ')[0],
           time: item.last_seen.split(' ')[1],
           status: mapStateToStatus(item.state),
@@ -44,26 +46,32 @@ function Alerts() {
     }
   }
 
-  const filtered = filter === 'All' ? alerts : alerts.filter(a => a.status === filter)
+  const filtered = filter === 'all' ? alerts : alerts.filter(a => a.status === filter)
+
+  const filterOptions = [
+    { key: 'all', label: t('all') },
+    { key: 'Suspected', label: t('suspected') },
+    { key: 'Confirmed', label: t('confirmed') },
+  ]
 
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
-      <h2 style={{ fontSize: '22px', fontWeight: '600', margin: '0 0 4px' }}>Alerts</h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>Manage and respond to real-time lost item alerts</p>
+      <h2 style={{ fontSize: '22px', fontWeight: '600', margin: '0 0 4px' }}>{t('alerts')}</h2>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>{t('alertsDesc')}</p>
 
       {/* Filter Bar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        {['All', 'Suspected', 'Confirmed'].map((f) => (
-          <button key={f} onClick={() => setFilter(f)} style={{
+        {filterOptions.map(({ key, label }) => (
+          <button key={key} onClick={() => setFilter(key)} style={{
             padding: '6px 16px',
             borderRadius: '20px',
             border: '1px solid var(--border-color)',
             fontSize: '13px',
             cursor: 'pointer',
-            background: filter === f ? '#1a1f2e' : 'var(--bg-card)',
-            color: filter === f ? 'white' : 'var(--text-secondary)',
-            fontWeight: filter === f ? '600' : '400',
-          }}>{f}</button>
+            background: filter === key ? '#1a1f2e' : 'var(--bg-card)',
+            color: filter === key ? 'white' : 'var(--text-secondary)',
+            fontWeight: filter === key ? '600' : '400',
+          }}>{label}</button>
         ))}
       </div>
 
@@ -71,7 +79,7 @@ function Alerts() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)', fontSize: '14px' }}>
-            No alerts to display
+            {t('noAlerts')}
           </div>
         ) : (
           filtered.map((alert) => (

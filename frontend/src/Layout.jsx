@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
+import { useLanguage } from './LanguageContext'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const apiPort = import.meta.env.VITE_API_PORT
@@ -8,6 +9,7 @@ const launcherPort = import.meta.env.VITE_LAUNCHER_PORT
 function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useLanguage()
   const [time, setTime] = useState(new Date())
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
   const [isConnected, setIsConnected] = useState(false)
@@ -108,11 +110,11 @@ function Layout({ children }) {
   const formatDate = (date) => date.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
   const navItems = [
-    { label: 'Monitoring', path: '/dashboard', icon: '🖥️' },
-    { label: 'Detection History', path: '/detection-history', icon: '🕐' },
-    { label: 'Alerts', path: '/alerts', icon: '🔔' },
-    { label: 'Precise Detection', path: '/precise-detection', icon: '🔍' },
-    { label: 'Settings', path: '/settings', icon: '⚙️' },
+    { label: t('nav_monitoring'), path: '/dashboard', icon: '🖥️' },
+    { label: t('nav_history'), path: '/detection-history', icon: '🕐' },
+    { label: t('nav_alerts'), path: '/alerts', icon: '🔔' },
+    { label: t('nav_retroactive'), path: '/precise-detection', icon: '🔍' },
+    { label: t('nav_settings'), path: '/settings', icon: '⚙️' },
   ]
 
   const connectedCams = Object.keys(status.pipelines).length
@@ -131,9 +133,9 @@ function Layout({ children }) {
         justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-          <span style={{ fontWeight: '600', fontSize: '22px' }}>Lost Item Detection System</span>
+          <span style={{ fontWeight: '600', fontSize: '22px' }}>{t('systemTitle')}</span>
           <span style={{ background: isConnected ? '#22c55e' : '#ef4444', color: 'white', fontSize: '16px', padding: '3px 12px', borderRadius: '10px' }}>
-            {isConnected ? '● LIVE' : '● OFFLINE'}
+            {isConnected ? t('live') : t('offline')}
           </span>
           {launcherOnline && isRunning && (
             <button
@@ -155,13 +157,13 @@ function Layout({ children }) {
                 opacity: stopLoading ? 0.6 : 1,
               }}
             >
-              {stopLoading ? '...' : 'Stop System'}
+              {stopLoading ? '...' : t('stopSystem')}
             </button>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '16px', padding: '3px 12px', borderRadius: '10px', fontWeight: '600' }}>Suspected {status.summary.suspected}</span>
-          <span style={{ background: '#ef4444', color: 'white', fontSize: '16px', padding: '3px 12px', borderRadius: '10px', fontWeight: '600' }}>Confirmed {status.summary.confirmed}</span>
+          <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '16px', padding: '3px 12px', borderRadius: '10px', fontWeight: '600' }}>{t('suspected')} {status.summary.suspected}</span>
+          <span style={{ background: '#ef4444', color: 'white', fontSize: '16px', padding: '3px 12px', borderRadius: '10px', fontWeight: '600' }}>{t('confirmed')} {status.summary.confirmed}</span>
           <div style={{ cursor: 'pointer', position: 'relative' }} onClick={() => navigate('/alerts')}>
             <span style={{ fontSize: '27px' }}>🔔</span>
             <span style={{
@@ -209,7 +211,7 @@ function Layout({ children }) {
             </div>
           ))}
           <div style={{ marginTop: 'auto', padding: '15px 25px', fontSize: '14px', color: 'var(--text-muted)' }}>
-            <div>Camera {connectedCams} connected</div>
+            <div>{t('cameraConnected', connectedCams)}</div>
           </div>
         </div>
 

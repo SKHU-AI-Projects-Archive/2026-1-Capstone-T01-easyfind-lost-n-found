@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useLanguage } from '../LanguageContext'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const apiPort = import.meta.env.VITE_API_PORT
@@ -8,6 +9,7 @@ const launcherPort = import.meta.env.VITE_LAUNCHER_PORT
 function Dashboard() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { t } = useLanguage()
   const focusCam = location.state?.focusCam || null
   const [modalCam, setModalCam] = useState(null)
   const [zoom, setZoom] = useState(1)
@@ -230,9 +232,9 @@ function Dashboard() {
           <div style={{ gridColumn: 'span 4', textAlign: 'center', padding: '60px 40px', color: 'var(--text-secondary)' }}>
             {launcherOnline && !isRunning ? (
               <div>
-                <div style={{ fontSize: '20px', fontWeight: '600', marginBottom: '21px' }}>Detection system is not running</div>
+                <div style={{ fontSize: '20px', fontWeight: '600', marginBottom: '21px' }}>{t('systemNotRunning')}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '13px', justifyContent: 'center', marginBottom: '21px' }}>
-                  <span style={{ fontSize: '17px', color: 'var(--text-secondary)' }}>System Config File</span>
+                  <span style={{ fontSize: '17px', color: 'var(--text-secondary)' }}>{t('systemConfigFile')}</span>
                   <select
                     value={selectedConfig}
                     onChange={e => setSelectedConfig(e.target.value)}
@@ -247,7 +249,7 @@ function Dashboard() {
                       minWidth: '260px',
                     }}
                   >
-                    <option value=''>Select config...</option>
+                    <option value=''>{t('selectConfig')}</option>
                     {configs.map(c => (
                       <option key={c} value={`configs/${c}`}>{c}</option>
                     ))}
@@ -268,11 +270,11 @@ function Dashboard() {
                     opacity: actionLoading || !selectedConfig ? 0.6 : 1,
                   }}
                 >
-                  {actionLoading ? 'Starting...' : 'Start System'}
+                  {actionLoading ? t('starting') : t('startSystem')}
                 </button>
               </div>
             ) : (
-              <div>No active camera streams found.</div>
+              <div>{t('noCameraStreams')}</div>
             )}
           </div>
         )}
