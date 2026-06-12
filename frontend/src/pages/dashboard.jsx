@@ -91,7 +91,7 @@ function Dashboard() {
     if (focusCam && cams.length > 0) {
       const cam = cams.find(c => c.id === focusCam)
       if (cam) handleOpenModal(cam)
-      navigate('/', { replace: true, state: {} })
+      navigate('/dashboard', { replace: true, state: {} })
     }
   }, [focusCam, cams])
 
