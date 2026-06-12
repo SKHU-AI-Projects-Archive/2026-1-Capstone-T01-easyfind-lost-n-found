@@ -180,65 +180,19 @@ function Dashboard() {
   }
 
   return (
-    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', overflow: 'auto' }}>
-
-      {/* Stop 버튼 — 실행 중일 때만 표시 */}
-      {launcherOnline && isRunning && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button
-            onClick={handleStop}
-            disabled={actionLoading}
-            style={{
-              padding: '6px 16px',
-              background: '#ef4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: actionLoading ? 'not-allowed' : 'pointer',
-              opacity: actionLoading ? 0.6 : 1,
-            }}
-          >
-            {actionLoading ? '...' : 'Stop System'}
-          </button>
-        </div>
-      )}
-
-      {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-        {[
-          { label: <><span style={{ color: '#f59e0b' }}>Suspected</span> Lost Items</>, key: 'SUSPECTED', color: '#f59e0b' },
-          { label: <><span style={{ color: '#ef4444' }}>Confirmed</span> Lost Items</>, key: 'LOST', color: '#ef4444' },
-        ].map((card) => (
-          <div key={card.key} style={{ background: 'var(--bg-card)', borderRadius: '10px', padding: '16px 20px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '10px' }}>{card.label}</div>
-            {Object.entries(camStatus).sort(([a], [b]) => a.localeCompare(b)).map(([cam, counts]) => (
-              <div key={cam} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: 'var(--text-secondary)', marginTop: '6px' }}>
-                <span>{cam}</span>
-                <span style={{ fontWeight: '700', fontSize: '16px', color: card.color }}>{counts[card.key] || 0}</span>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
+    <div style={{ padding: '16px', height: '100%', overflow: 'auto' }}>
 
       {/* CCTV Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', flex: 1 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px' }}>
         {cams.map((cam) => (
           <div key={cam.id}
             onClick={() => handleOpenModal(cam)}
             style={{
-              background: '#111827',
-              borderRadius: '10px',
-              padding: '12px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '8px',
-              border: cam.status === 'Confirmed' ? '1px solid #ef4444' : '1px solid transparent',
               cursor: 'pointer',
             }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1f2937', borderRadius: '6px', padding: '6px 10px' }}>
               <span style={{ color: '#9ca3af', fontSize: '12px' }}>{cam.name}</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 {camStatus[cam.id]?.SUSPECTED > 0 && (
@@ -269,7 +223,7 @@ function Dashboard() {
           </div>
         ))}
         {cams.length === 0 && (
-          <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '60px 40px', color: 'var(--text-secondary)' }}>
+          <div style={{ gridColumn: 'span 4', textAlign: 'center', padding: '60px 40px', color: 'var(--text-secondary)' }}>
             {launcherOnline && !isRunning ? (
               <div>
                 <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '16px' }}>Detection system is not running</div>

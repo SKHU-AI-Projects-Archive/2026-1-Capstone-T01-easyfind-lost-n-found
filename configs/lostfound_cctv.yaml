@@ -1,15 +1,15 @@
 setting:
-  project_name: "EasyFind-LostAndFound"
+  project_name: "LostFound-Demo"
 
 search:
   thumb_root: search_results
 
 sources:
-  # 상시 감시 카메라 (비디오) — archive 활성으로 과거 프레임 timestamp 저장
-  - id: "cam_0"
+  # 상시 소스 (비디오) — archive 활성으로 과거 프레임을 timestamp 기반 저장
+  - id: "lf_cam0"
     type: "VideoSource"
-    video_path: assets/videos/demo.mp4
-    shared_memory_name: "shm_cam_0"
+    video_path: assets/videos/Venice-2.mp4
+    shared_memory_name: "shm_lf_cam0"
     width: 640
     height: 480
     fps: 30
@@ -21,54 +21,72 @@ sources:
       jpeg_interval_sec: 5
       save_video: false
 
-  - id: "cam_1"
-    type: "VideoSource"
-    video_path: assets/videos/demo2.mp4
-    shared_memory_name: "shm_cam_1"
+  - id: "lf_cam1"
+    type: "FolderImageSource"
+    folder_path: assets/images
+    shared_memory_name: "shm_lf_cam1"
     width: 640
     height: 480
     fps: 30
-    buffer_size: 30
+    pattern: "*.jpg"
     loop: true
-    archive:
-      enable: true
-      root: archives
-      jpeg_interval_sec: 5
-      save_video: false
 
-  # 소급 검색용 소스 — 검색 요청 시에만 아카이브 프레임 공급 (평소 idle)
+  # 검색 소스 — 검색 요청 시에만 아카이브 프레임을 공급 (평소 idle)
   - id: "search_src"
     type: "ArchiveSource"
-    shared_memory_name: "shm_search"
+    shared_memory_name: "shm_lf_search"
     width: 640
     height: 480
     root: archives
 
 pipelines:
-  # 상시 분실물 감지 파이프라인
-  - name: "Office_Cam"
-    source_id: "cam_0"
+  # 상시 파이프라인 (detector→tracker→abandoned)
+  - name: "Live_Cam0"
+    source_id: "lf_cam0"
     enable: true
-    gpu_id: 0
-
     detector:
       type: "Yolo11Detector"
-      weights_path: assets/weights/yolo11s.pt
-      imgsz: 1024
+      weights_path: assets/weights/yolo11n.pt
+      imgsz: 960
       iou: 0.7
       conf: 0.25
       device: "cuda:0"
       classes: [0, 24, 26]
-
     tracker:
       type: "BYTETracker"
-      track_thresh : 0.25
-      match_thresh : 0.8
-      track_buffer : 30
-      crowd : false
+      track_thresh: 0.25
+      match_thresh: 0.8
+      track_buffer: 30
       fps: 30
-      classes: [0, 24, 26]
+    abandoned:
+      type: "abandonedObject"
+      fps: 30
+      dist_threshold: 0.08
+      suspected_threshold_min: 0.25
+      lost_threshold_min: 0.5
+      class_map:
+        0: person
+        24: backpack
+        26: handbag
+        28: suitcase
 
+  - name: "Live_Cam1"
+    source_id: "lf_cam1"
+    enable: true
+    detector:
+      type: "Yolo11Detector"
+      weights_path: assets/weights/yolo11n.pt
+      imgsz: 1280
+      iou: 0.7
+      conf: 0.25
+      device: "cuda:0"
+      classes: [0, 24, 26]
+    tracker:
+      type: "BYTETracker"
+      track_thresh: 0.25
+      match_thresh: 0.8
+      track_buffer: 30
+      fps: 30
     abandoned:
       type: "abandonedObject"
       fps: 30
@@ -81,42 +99,7 @@ pipelines:
         26: handbag
         28: suitcase
 
-  - name: "Office_Cam1"
-    source_id: "cam_1"
-    enable: true
-    gpu_id: 0
-
-    detector:
-      type: "Yolo11Detector"
-      weights_path: assets/weights/yolo11s.pt
-      imgsz: 1024
-      iou: 0.7
-      conf: 0.25
-      device: "cuda:0"
-      classes: [0, 24, 26]
-
-    tracker:
-      type: "BYTETracker"
-      track_thresh : 0.25
-      match_thresh : 0.8
-      track_buffer : 30
-      crowd : false
-      fps: 30
-      classes: [0, 24, 26]
-
-    abandoned:
-      type: "abandonedObject"
-      fps: 30
-      dist_threshold: 0.08
-      suspected_threshold_min: 0.5
-      lost_threshold_min: 0.6
-      class_map:
-        0: person
-        24: backpack
-        26: handbag
-        28: suitcase
-
-  # 소급 검색 파이프라인 (detector만 — tracker/abandoned 없음, 평소 idle)
+  # 검색 파이프라인 (detector만 — tracker/abandoned 없음)
   - name: "Search"
     source_id: "search_src"
     enable: true
@@ -124,28 +107,21 @@ pipelines:
     detector:
       type: "YOLOWorldDetector"
       weights_path: assets/weights/yolov8s-worldv2.pt
-      imgsz: 1280
+      imgsz: 640
       conf: 0.25
       iou: 0.7
       device: "cuda:0"
 
 output:
-  mode: "sync"
+  mode: async
+  target_fps: 30
   handlers:
-    - type: "ScreenHandler"
-      enable: true
-      view_width: 1280
-      view_height: 960
-      draw_detections: true
-      draw_tracks: true
-      show_info: true
-
     - type: "WebHandler"
       enable: true
       port: 5000
-      view_width: 1280
-      view_height: 960
-      draw_detections: false 
+      view_width: 640
+      view_height: 480
+      draw_detections: false
       draw_tracks: true
       draw_person: false 
       show_info: true

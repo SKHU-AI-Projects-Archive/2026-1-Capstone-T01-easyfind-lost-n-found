@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const apiPort = import.meta.env.VITE_API_PORT
+const launcherPort = import.meta.env.VITE_LAUNCHER_PORT
 
 function Layout({ children }) {
   const navigate = useNavigate()
@@ -16,6 +17,9 @@ function Layout({ children }) {
   })
   const [toasts, setToasts] = useState([])
   const knownAlertKeys = useRef(null)
+  const [isRunning, setIsRunning] = useState(false)
+  const [launcherOnline, setLauncherOnline] = useState(false)
+  const [stopLoading, setStopLoading] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
@@ -40,12 +44,30 @@ function Layout({ children }) {
       }
     }
 
+    const fetchLauncher = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl}:${launcherPort}/api/launcher/status`)
+        if (res.ok) {
+          const data = await res.json()
+          setIsRunning(data.running)
+          setLauncherOnline(true)
+        } else {
+          setLauncherOnline(false)
+        }
+      } catch {
+        setLauncherOnline(false)
+      }
+    }
+
     fetchStatus()
+    fetchLauncher()
     const statusTimer = setInterval(fetchStatus, 2000)
+    const launcherTimer = setInterval(fetchLauncher, 3000)
 
     return () => {
       clearInterval(timer)
       clearInterval(statusTimer)
+      clearInterval(launcherTimer)
     }
   }, [])
 
@@ -113,6 +135,29 @@ function Layout({ children }) {
           <span style={{ background: isConnected ? '#22c55e' : '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px' }}>
             {isConnected ? '● LIVE' : '● OFFLINE'}
           </span>
+          {launcherOnline && isRunning && (
+            <button
+              onClick={async () => {
+                setStopLoading(true)
+                try { await fetch(`${apiBaseUrl}:${launcherPort}/api/launcher/stop`, { method: 'POST' }) } finally { setStopLoading(false) }
+              }}
+              disabled={stopLoading}
+              style={{
+                padding: '2px 14px',
+                background: '#ef4444',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontSize: '13px',
+                fontWeight: '600',
+                lineHeight: 'inherit',
+                cursor: stopLoading ? 'not-allowed' : 'pointer',
+                opacity: stopLoading ? 0.6 : 1,
+              }}
+            >
+              {stopLoading ? '...' : 'Stop System'}
+            </button>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Suspected {status.summary.suspected}</span>
