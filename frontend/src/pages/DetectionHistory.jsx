@@ -70,8 +70,6 @@ function DetectionHistory() {
 
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
-      <h2 style={{ fontSize: '22px', fontWeight: '600', margin: '0 0 4px' }}>{t('detectionHistory')}</h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>{t('detectionHistoryDesc')}</p>
 
       {/* 시간 범위 입력 */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '16px' }}>

@@ -56,8 +56,6 @@ function Alerts() {
 
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
-      <h2 style={{ fontSize: '22px', fontWeight: '600', margin: '0 0 4px' }}>{t('alerts')}</h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 20px' }}>{t('alertsDesc')}</p>
 
       {/* Filter Bar */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
@@ -102,7 +100,7 @@ function Alerts() {
               <div style={{ width: '44px', height: '44px', background: '#1a1f2e', borderRadius: '8px', display: 'none', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#6b7280', flexShrink: 0 }}>IMG</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>{alert.type} (ID:{alert.id})</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{alert.cam} · {alert.location} · {alert.time}</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{alert.cam} · {alert.time}</div>
               </div>
               <span style={{
                 fontSize: '11px',
@@ -111,7 +109,7 @@ function Alerts() {
                 fontWeight: '600',
                 background: alert.raw_state === 'LOST' ? '#fef2f2' : '#fffbeb',
                 color: alert.raw_state === 'LOST' ? '#ef4444' : '#f59e0b',
-              }}>{alert.status}</span>
+              }}>{alert.raw_state === 'LOST' ? t('confirmed') : t('suspected')}</span>
             </div>
           ))
         )}

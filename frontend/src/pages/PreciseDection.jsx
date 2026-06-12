@@ -108,10 +108,6 @@ function PreciseDection() {
 
   return (
     <div style={{ padding: '24px', overflow: 'auto', height: '100%' }}>
-      <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '8px' }}>{t('preciseDetection')}</h2>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-        {t('preciseDetectionDesc')}
-      </p>
 
       {/* 필터 */}
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '20px' }}>

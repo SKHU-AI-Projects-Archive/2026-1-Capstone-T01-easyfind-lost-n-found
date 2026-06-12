@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useRef } from 'react'
 import { useLanguage } from './LanguageContext'
+import SettingsModal from './SettingsModal'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const apiPort = import.meta.env.VITE_API_PORT
@@ -22,6 +23,7 @@ function Layout({ children }) {
   const [isRunning, setIsRunning] = useState(false)
   const [launcherOnline, setLauncherOnline] = useState(false)
   const [stopLoading, setStopLoading] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
@@ -92,9 +94,7 @@ function Layout({ children }) {
             knownAlertKeys.current.add(key)
             if (localStorage.getItem('adminAlerts') === 'false') continue
             const id = Date.now() + Math.random()
-            const label = alert.state === 'LOST' ? 'Confirmed Lost' : 'Suspected Lost'
-            const msg = `${alert.type} — ${label} (${alert.pipe_name})`
-            setToasts(t => [...t, { id, msg, state: alert.state }])
+            setToasts(prev => [...prev, { id, type: alert.type, pipeName: alert.pipe_name, state: alert.state }])
             setTimeout(() => setToasts(t => t.filter(toast => toast.id !== id)), 4000)
           }
         }
@@ -111,10 +111,9 @@ function Layout({ children }) {
 
   const navItems = [
     { label: t('nav_monitoring'), path: '/dashboard', icon: '🖥️' },
-    { label: t('nav_history'), path: '/detection-history', icon: '🕐' },
     { label: t('nav_alerts'), path: '/alerts', icon: '🔔' },
+    { label: t('nav_history'), path: '/detection-history', icon: '🕐' },
     { label: t('nav_retroactive'), path: '/precise-detection', icon: '🔍' },
-    { label: t('nav_settings'), path: '/settings', icon: '⚙️' },
   ]
 
   const connectedCams = Object.keys(status.pipelines).length
@@ -210,8 +209,27 @@ function Layout({ children }) {
               {item.label}
             </div>
           ))}
-          <div style={{ marginTop: 'auto', padding: '15px 25px', fontSize: '14px', color: 'var(--text-muted)' }}>
-            <div>{t('cameraConnected', connectedCams)}</div>
+          <div style={{ marginTop: 'auto' }}>
+            <div
+              onClick={() => setSettingsOpen(true)}
+              style={{
+                padding: '12px 25px',
+                fontSize: '16px',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                borderLeft: '3px solid transparent',
+                borderTop: '1px solid var(--border-color)',
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>⚙️</span>
+              {t('nav_settings')}
+            </div>
+            <div style={{ padding: '10px 25px', fontSize: '14px', color: 'var(--text-muted)' }}>
+              {t('cameraConnected', connectedCams)}
+            </div>
           </div>
         </div>
 
@@ -221,6 +239,8 @@ function Layout({ children }) {
         </div>
 
       </div>
+
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       {/* Toast 알림 */}
       <div style={{
@@ -239,13 +259,13 @@ function Layout({ children }) {
             borderLeft: `5px solid ${toast.state === 'LOST' ? '#b91c1c' : '#d97706'}`,
           }}>
             <div style={{ fontSize: '12px', fontWeight: '700', opacity: 0.9, marginBottom: '4px' }}>
-              {toast.state === 'LOST' ? '🔴 Confirmed Lost' : '🟡 Suspected Lost'}
+              {toast.state === 'LOST' ? t('toastConfirmed') : t('toastSuspected')}
             </div>
             <div style={{ fontSize: '16px', fontWeight: '800' }}>
-              {toast.msg.split(' — ')[0]}
+              {toast.type}
             </div>
             <div style={{ fontSize: '12px', fontWeight: '600', opacity: 0.85, marginTop: '3px' }}>
-              {toast.msg.split(' — ')[1].replace(/.*\((.+)\)/, '$1')}
+              {t('toastCamera', toast.pipeName)}
             </div>
           </div>
         ))}
