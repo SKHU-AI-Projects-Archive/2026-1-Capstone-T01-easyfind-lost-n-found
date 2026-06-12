@@ -124,15 +124,15 @@ function Layout({ children }) {
       <div style={{
         background: '#1a1f2e',
         color: 'white',
-        padding: '0 24px',
-        height: '48px',
+        padding: '0 36px',
+        height: '72px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontWeight: '600', fontSize: '15px' }}>Lost Item Detection System</span>
-          <span style={{ background: isConnected ? '#22c55e' : '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+          <span style={{ fontWeight: '600', fontSize: '22px' }}>Lost Item Detection System</span>
+          <span style={{ background: isConnected ? '#22c55e' : '#ef4444', color: 'white', fontSize: '16px', padding: '3px 12px', borderRadius: '10px' }}>
             {isConnected ? '● LIVE' : '● OFFLINE'}
           </span>
           {launcherOnline && isRunning && (
@@ -143,12 +143,12 @@ function Layout({ children }) {
               }}
               disabled={stopLoading}
               style={{
-                padding: '2px 14px',
+                padding: '3px 21px',
                 background: '#ef4444',
                 color: 'white',
                 border: 'none',
                 borderRadius: '10px',
-                fontSize: '13px',
+                fontSize: '19px',
                 fontWeight: '600',
                 lineHeight: 'inherit',
                 cursor: stopLoading ? 'not-allowed' : 'pointer',
@@ -159,30 +159,30 @@ function Layout({ children }) {
             </button>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Suspected {status.summary.suspected}</span>
-          <span style={{ background: '#ef4444', color: 'white', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>Confirmed {status.summary.confirmed}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <span style={{ background: '#f59e0b', color: '#1a1f2e', fontSize: '16px', padding: '3px 12px', borderRadius: '10px', fontWeight: '600' }}>Suspected {status.summary.suspected}</span>
+          <span style={{ background: '#ef4444', color: 'white', fontSize: '16px', padding: '3px 12px', borderRadius: '10px', fontWeight: '600' }}>Confirmed {status.summary.confirmed}</span>
           <div style={{ cursor: 'pointer', position: 'relative' }} onClick={() => navigate('/alerts')}>
-            <span style={{ fontSize: '18px' }}>🔔</span>
+            <span style={{ fontSize: '27px' }}>🔔</span>
             <span style={{
               position: 'absolute',
               top: '-6px',
               right: '-8px',
               background: '#ef4444',
               color: 'white',
-              fontSize: '10px',
+              fontSize: '15px',
               fontWeight: '600',
-              width: '16px',
-              height: '16px',
+              width: '24px',
+              height: '24px',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}>{(status.summary.suspected || 0) + (status.summary.confirmed || 0)}</span>
           </div>
-<div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '13px', fontWeight: '600' }}>{formatTime(time)}</div>
-            <div style={{ fontSize: '10px', color: '#9ca3af' }}>{formatDate(time)}</div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '19px', fontWeight: '600' }}>{formatTime(time)}</div>
+            <div style={{ fontSize: '15px', color: '#9ca3af' }}>{formatDate(time)}</div>
           </div>
         </div>
       </div>
@@ -190,25 +190,25 @@ function Layout({ children }) {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* Sidebar */}
-        <div style={{ width: '200px', background: 'var(--bg-sidebar)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', padding: '12px 0' }}>
+        <div style={{ width: '250px', background: 'var(--bg-sidebar)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', padding: '18px 0' }}>
           {navItems.map((item, i) => (
             <div key={i} onClick={() => navigate(item.path)} style={{
-              padding: '10px 20px',
-              fontSize: '13px',
+              padding: '12px 25px',
+              fontSize: '16px',
               color: location.pathname === item.path ? 'var(--text-primary)' : 'var(--text-secondary)',
               fontWeight: location.pathname === item.path ? '600' : '400',
               background: location.pathname === item.path ? 'var(--bg-page)' : 'transparent',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
+              gap: '12px',
               borderLeft: location.pathname === item.path ? '3px solid #1a1f2e' : '3px solid transparent',
             }}>
-              <span style={{ fontSize: '16px' }}>{item.icon}</span>
+              <span style={{ fontSize: '20px' }}>{item.icon}</span>
               {item.label}
             </div>
           ))}
-          <div style={{ marginTop: 'auto', padding: '12px 20px', fontSize: '11px', color: 'var(--text-muted)' }}>
+          <div style={{ marginTop: 'auto', padding: '15px 25px', fontSize: '14px', color: 'var(--text-muted)' }}>
             <div>Camera {connectedCams} connected</div>
           </div>
         </div>

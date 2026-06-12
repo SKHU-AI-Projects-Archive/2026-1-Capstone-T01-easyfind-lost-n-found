@@ -57,6 +57,10 @@ function Dashboard() {
         const res = await fetch(`${apiBaseUrl}:${launcherPort}/api/launcher/status`)
         if (res.ok) {
           const data = await res.json()
+          if (!data.running) {
+            setCams([])
+            setCamStatus({})
+          }
           setIsRunning(data.running)
           setSelectedConfig(data.config)
           setLauncherOnline(true)
@@ -226,21 +230,21 @@ function Dashboard() {
           <div style={{ gridColumn: 'span 4', textAlign: 'center', padding: '60px 40px', color: 'var(--text-secondary)' }}>
             {launcherOnline && !isRunning ? (
               <div>
-                <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '16px' }}>Detection system is not running</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center', marginBottom: '16px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Config</span>
+                <div style={{ fontSize: '20px', fontWeight: '600', marginBottom: '21px' }}>Detection system is not running</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '13px', justifyContent: 'center', marginBottom: '21px' }}>
+                  <span style={{ fontSize: '17px', color: 'var(--text-secondary)' }}>System Config File</span>
                   <select
                     value={selectedConfig}
                     onChange={e => setSelectedConfig(e.target.value)}
                     style={{
-                      padding: '7px 10px',
+                      padding: '9px 13px',
                       borderRadius: '8px',
                       border: '1px solid var(--border-color)',
                       background: 'var(--bg-input)',
                       color: 'var(--text-primary)',
-                      fontSize: '13px',
+                      fontSize: '17px',
                       cursor: 'pointer',
-                      minWidth: '200px',
+                      minWidth: '260px',
                     }}
                   >
                     <option value=''>Select config...</option>
@@ -253,19 +257,18 @@ function Dashboard() {
                   onClick={handleStart}
                   disabled={actionLoading || !selectedConfig}
                   style={{
-                    padding: '10px 28px',
+                    padding: '13px 36px',
                     background: '#22c55e',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
-                    fontSize: '14px',
+                    fontSize: '18px',
                     fontWeight: '600',
                     cursor: actionLoading || !selectedConfig ? 'not-allowed' : 'pointer',
                     opacity: actionLoading || !selectedConfig ? 0.6 : 1,
                   }}
                 >
                   {actionLoading ? 'Starting...' : 'Start System'}
-
                 </button>
               </div>
             ) : (
